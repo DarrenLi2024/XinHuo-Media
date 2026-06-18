@@ -31,7 +31,7 @@ export default function LoginPage() {
           if (result.data?.user) {
             setUser(result.data.user as User);
             const next = new URLSearchParams(window.location.search).get('next');
-            router.replace(next && next.startsWith('/') ? next : '/');
+            router.replace(next && next.startsWith('/') ? next : '/dashboard');
           }
         }
       } catch {
@@ -40,6 +40,7 @@ export default function LoginPage() {
     };
     void checkSession();
   }, [router, setUser]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -67,7 +68,7 @@ export default function LoginPage() {
 
       setUser(result.data.user);
       const next = new URLSearchParams(window.location.search).get('next');
-      router.replace(next && next.startsWith('/') ? next : '/');
+      router.replace(next && next.startsWith('/') ? next : '/dashboard');
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : '登录失败');
     } finally {
