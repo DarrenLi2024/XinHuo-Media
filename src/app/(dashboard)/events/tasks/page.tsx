@@ -66,8 +66,6 @@ export default function TasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
-
-  // inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<TaskRow>>({});
 
@@ -105,7 +103,6 @@ export default function TasksPage() {
     });
   }, [tasks, searchQuery, priorityFilter]);
 
-  // 甘特图日期范围
   const ganttRange = useMemo(() => {
     if (filteredTasks.length === 0) return { min: '', max: '', days: 0, dateList: [] as string[] };
     const dates = filteredTasks.flatMap((t) => [t.start_date, t.end_date].filter(Boolean));
@@ -189,7 +186,7 @@ export default function TasksPage() {
     loadTasks();
   };
 
-  // 甘特图辅助函数
+  // 甘特图辅助
   const ganttColWidth = 36;
   const ganttLabelWidth = 260;
 
@@ -209,13 +206,29 @@ export default function TasksPage() {
     };
   };
 
+  // 计算任务在全局天数中的百分比（用于移动端时序条宽度）
+  const taskDayPct = (task: TaskRow) => {
+    const { dateList, days } = ganttRange;
+    if (days === 0) return { leftPct: 0, widthPct: 0 };
+    const sIdx = dateList.indexOf(task.start_date);
+    const eIdx = dateList.indexOf(task.end_date);
+    if (sIdx === -1 || eIdx === -1) return { leftPct: 0, widthPct: 0 };
+    return {
+      leftPct: (sIdx / days) * 100,
+      widthPct: ((eIdx - sIdx + 1) / days) * 100,
+    };
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPos = ganttRange.dateList.indexOf(today);
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">任务分工</h1>
-          <p className="text-muted-foreground">管理活动筹备任务，甘特图直观展现进度</p>
+          <h1 className="text-2xl font-bold tracking-tight font-serif">任务分工</h1>
+          <p className="text-muted-foreground text-sm">管理活动筹备任务，甘特图直观展现进度</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -255,7 +268,7 @@ export default function TasksPage() {
         </Dialog>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {['pending', 'in_progress', 'completed', 'delayed'].map((s) => {
           const cfg = STATUS_ITEMS[s];
@@ -315,7 +328,7 @@ export default function TasksPage() {
 
       {error && <Card className="border-destructive/30"><CardContent className="py-4 text-sm text-destructive">{error}</CardContent></Card>}
 
-      {/* Tabs: List | Gantt */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="list">列表视图</TabsTrigger>
@@ -334,11 +347,9 @@ export default function TasksPage() {
                     const isEditing = editingId === task.id;
                     const StatusIcon = STATUS_ITEMS[task.status]?.icon || Clock;
                     const pCfg = PRIORITY_ITEMS[task.priority] || PRIORITY_ITEMS.medium;
-
                     return (
                       <div key={task.id} className="rounded-lg border p-4 hover:border-primary/30 transition-colors">
                         {isEditing ? (
-                          /* --- inline edit mode --- */
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <Input className="w-[60%] font-medium" value={editValues.title || ''} onChange={(e) => setEditValues({ ...editValues, title: e.target.value })} />
@@ -367,7 +378,6 @@ export default function TasksPage() {
                             <div className="space-y-1"><Label className="text-xs">备注</Label><Textarea value={editValues.description || ''} onChange={(e) => setEditValues({ ...editValues, description: e.target.value })} rows={1} /></div>
                           </div>
                         ) : (
-                          /* --- display mode --- */
                           <>
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-3">
@@ -379,7 +389,6 @@ export default function TasksPage() {
                                     <Badge variant="outline" style={{ color: STATUS_ITEMS[task.status]?.color, borderColor: STATUS_ITEMS[task.status]?.color }}>
                                       {STATUS_ITEMS[task.status]?.label}
                                     </Badge>
-                                    {task.events?.name && <span className="text-xs text-muted-foreground">{task.events.name}</span>}
                                   </div>
                                   {task.assignee && <p className="text-sm text-muted-foreground mt-1">👤 {task.assignee}</p>}
                                   {task.responsibility && <p className="text-sm mt-1 line-clamp-2">{task.responsibility}</p>}
@@ -395,27 +404,13 @@ export default function TasksPage() {
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <TooltipProvider delayDuration={300}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(task)}><Pencil className="h-4 w-4" /></Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>编辑</TooltipContent>
-                                  </Tooltip>
+                                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(task)}><Pencil className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>编辑</TooltipContent></Tooltip>
                                 </TooltipProvider>
                                 <TooltipProvider delayDuration={300}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(task.id)}><Trash2 className="h-4 w-4" /></Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>删除</TooltipContent>
-                                  </Tooltip>
+                                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(task.id)}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>删除</TooltipContent></Tooltip>
                                 </TooltipProvider>
-                                {task.status === 'pending' && (
-                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, 'in_progress')}>开始</Button>
-                                )}
-                                {task.status === 'in_progress' && (
-                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, 'completed')}>完成</Button>
-                                )}
+                                {task.status === 'pending' && <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, 'in_progress')}>开始</Button>}
+                                {task.status === 'in_progress' && <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, 'completed')}>完成</Button>}
                               </div>
                             </div>
                           </>
@@ -429,106 +424,168 @@ export default function TasksPage() {
           </Card>
         </TabsContent>
 
-        {/* === GANTT VIEW === */}
+        {/* ================================================================ */}
+        {/* === GANTT VIEW — PC 横向 / 移动端竖向 ========================== */}
+        {/* ================================================================ */}
         <TabsContent value="gantt" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">活动任务甘特图</CardTitle>
-              <p className="text-sm text-muted-foreground">共 {filteredTasks.length} 个任务 · 横轴为日期</p>
+              <CardTitle className="text-base font-serif">活动任务甘特图</CardTitle>
+              <p className="text-sm text-muted-foreground">共 {filteredTasks.length} 个任务</p>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent>
               {filteredTasks.length === 0 || ganttRange.days === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">暂无任务数据，请先创建任务。</div>
               ) : (
-                <div style={{ minWidth: ganttLabelWidth + ganttRange.days * ganttColWidth + 20, position: 'relative' }}>
-                  {/* Date header */}
-                  <div className="flex" style={{ marginLeft: ganttLabelWidth }}>
-                    {ganttRange.dateList.map((date) => (
-                      <div
-                        key={date}
-                        className="text-[10px] text-muted-foreground text-center border-l border-gray-100 shrink-0"
-                        style={{ width: ganttColWidth }}
-                      >
-                        {date.slice(5)}
+                <>
+                  {/* === PC: Horizontal Gantt (hidden on mobile) === */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <div style={{ minWidth: ganttLabelWidth + ganttRange.days * ganttColWidth + 20, position: 'relative' }}>
+                      {/* Date header */}
+                      <div className="flex" style={{ marginLeft: ganttLabelWidth }}>
+                        {ganttRange.dateList.map((date) => (
+                          <div key={date} className="text-[10px] text-muted-foreground text-center border-l border-gray-100 shrink-0"
+                            style={{ width: ganttColWidth }}>{date.slice(5)}</div>
+                        ))}
                       </div>
-                    ))}
+
+                      {/* Today line */}
+                      {todayPos !== -1 && (
+                        <div style={{
+                          position: 'absolute', top: 0,
+                          left: `${ganttLabelWidth + todayPos * ganttColWidth + ganttColWidth / 2}px`,
+                          width: '2px', height: `${22 + filteredTasks.length * 40}px`,
+                          backgroundColor: '#ef4444', zIndex: 20, pointerEvents: 'none' }}>
+                          <span style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', color: '#ef4444', whiteSpace: 'nowrap', fontWeight: 600 }}>今天</span>
+                        </div>
+                      )}
+
+                      {/* Task rows */}
+                      <div className="mt-2">
+                        {filteredTasks.map((task) => (
+                          <div key={task.id} className="flex items-center border-b border-gray-50 hover:bg-muted/30" style={{ height: 40 }}>
+                            <div className="shrink-0 flex items-center gap-2 pr-3" style={{ width: ganttLabelWidth }}>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_ITEMS[task.status]?.color }} />
+                              <span className="text-xs truncate font-medium" title={task.title}>{task.title}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{task.assignee}</span>
+                            </div>
+                            <div className="relative flex-1" style={{ height: 24 }}>
+                              <div className="absolute top-0 rounded-full h-full flex items-center justify-center text-[10px] text-white font-medium px-1.5 truncate cursor-default"
+                                style={ganttBarStyle(task)}
+                                title={`${task.title}: ${task.start_date} → ${task.end_date} (${task.progress}%)`}>
+                                {task.progress > 0 ? `${task.progress}%` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+                        {Object.entries(STATUS_ITEMS).slice(0, 4).map(([k, v]) => (
+                          <div key={k} className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded" style={{ backgroundColor: v.color }} /><span>{v.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
-{/* Today vertical line — spans full gantt height */}
-                  {(() => {
-                    const today = new Date().toISOString().slice(0, 10);
-                    const todayIdx = ganttRange.dateList.indexOf(today);
-                    if (todayIdx === -1) return null;
-                    const left = ganttLabelWidth + todayIdx * ganttColWidth + ganttColWidth / 2;
-                    const totalRows = filteredTasks.length;
-                    const headerH = 22;
-                    const rowH = 40;
-                    const fullH = headerH + totalRows * rowH;
-                    return (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: `${left}px`,
-                          width: '2px',
-                          height: `${fullH}px`,
-                          backgroundColor: '#ef4444',
-                          zIndex: 20,
-                          pointerEvents: 'none',
-                        }}
-                      >
-                        <span
-                          style={{
-                            position: 'absolute',
-                            top: '-18px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            fontSize: '10px',
-                            color: '#ef4444',
-                            whiteSpace: 'nowrap',
-                            fontWeight: 600,
-                          }}
-                        >
-                          今天
-                        </span>
+                  {/* === Mobile: Vertical Timeline (visible below lg) === */}
+                  <div className="lg:hidden space-y-4">
+                    {/* Today marker strip */}
+                    {todayPos !== -1 && (
+                      <div className="flex items-center gap-2 px-1">
+                        <div className="h-0.5 flex-1 bg-red-200" />
+                        <span className="text-[11px] font-semibold text-red-500 whitespace-nowrap">● 今天</span>
+                        <div className="h-0.5 flex-1 bg-red-200" />
                       </div>
-                    );
-                  })()}
+                    )}
 
-                  {/* Task rows */}
-                  <div className="mt-2">
-                    {filteredTasks.map((task) => (
-                      <div key={task.id} className="flex items-center border-b border-gray-50 hover:bg-muted/30" style={{ height: 40 }}>
-                        {/* Label */}
-                        <div className="shrink-0 flex items-center gap-2 pr-3" style={{ width: ganttLabelWidth }}>
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_ITEMS[task.status]?.color }} />
-                          <span className="text-xs truncate font-medium" title={task.title}>{task.title}</span>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{task.assignee}</span>
-                        </div>
-                        {/* Bar area */}
-                        <div className="relative flex-1" style={{ height: 24 }}>
-                          <div
-                            className="absolute top-0 rounded-full h-full flex items-center justify-center text-[10px] text-white font-medium px-1.5 truncate cursor-default"
-                            style={ganttBarStyle(task)}
-                            title={`${task.title}: ${task.start_date} → ${task.end_date} (${task.progress}%)`}
-                          >
-                            {task.progress > 0 ? `${task.progress}%` : ''}
+                    {filteredTasks.map((task) => {
+                      const { leftPct, widthPct } = taskDayPct(task);
+                      const cfg = STATUS_ITEMS[task.status] || STATUS_ITEMS.pending;
+                      const totalDays = ganttRange.days;
+                      const sIdx = ganttRange.dateList.indexOf(task.start_date);
+                      const eIdx = ganttRange.dateList.indexOf(task.end_date);
+                      const taskDays = sIdx === -1 || eIdx === -1 ? 0 : eIdx - sIdx + 1;
+
+                      return (
+                        <div key={task.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                              <span className="text-sm font-semibold truncate">{task.title}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge variant="outline" className={PRIORITY_ITEMS[task.priority]?.className || ''}>
+                                {PRIORITY_ITEMS[task.priority]?.label || task.priority}
+                              </Badge>
+                              <Badge variant="outline" style={{ color: cfg.color, borderColor: cfg.color }}>{cfg.label}</Badge>
+                            </div>
+                          </div>
+
+                          {/* Meta */}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {task.assignee && <span>👤 {task.assignee}</span>}
+                            <span>{task.start_date} → {task.end_date}</span>
+                            <span>{taskDays}天</span>
+                          </div>
+
+                          {/* Vertical Timeline Bar */}
+                          <div className="relative h-8 rounded-full bg-muted overflow-hidden">
+                            {/* Task bar */}
+                            <div
+                              className="absolute top-0 h-full rounded-full flex items-center justify-end pr-2 text-[10px] text-white font-semibold transition-all"
+                              style={{
+                                left: `${leftPct}%`,
+                                width: `${Math.max(widthPct, 2)}%`,
+                                backgroundColor: cfg.color,
+                                opacity: task.status === 'completed' ? 0.7 : 0.9,
+                              }}
+                            >
+                              {widthPct > 15 && `${task.progress}%`}
+                            </div>
+                            {/* Today marker on bar */}
+                            {todayPos !== -1 && sIdx !== -1 && eIdx !== -1 && todayPos >= sIdx && todayPos <= eIdx && (
+                              <div
+                                className="absolute top-0 w-0.5 h-full bg-red-500 z-10"
+                                style={{ left: `${((todayPos - sIdx) / Math.max(eIdx - sIdx, 1)) * widthPct + leftPct}%` }}
+                              />
+                            )}
+                          </div>
+
+                          {/* Progress */}
+                          <div className="flex items-center gap-2">
+                            <Progress value={task.progress} className="h-1.5 flex-1" />
+                            <span className="text-xs text-muted-foreground tabular-nums">{task.progress}%</span>
+                          </div>
+
+                          {/* Action */}
+                          <div className="flex items-center gap-2 pt-1">
+                            {task.status === 'pending' && (
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleStatusChange(task.id, 'in_progress')}>开始</Button>
+                            )}
+                            {task.status === 'in_progress' && (
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleStatusChange(task.id, 'completed')}>完成</Button>
+                            )}
+                            <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => startEdit(task)}><Pencil className="h-3 w-3 mr-1" />编辑</Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      );
+                    })}
 
-                  {/* Legend */}
-                  <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-                    {Object.entries(STATUS_ITEMS).slice(0, 4).map(([k, v]) => (
-                      <div key={k} className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded" style={{ backgroundColor: v.color }} />
-                        <span>{v.label}</span>
-                      </div>
-                    ))}
+                    {/* Legend */}
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-2">
+                      {Object.entries(STATUS_ITEMS).slice(0, 4).map(([k, v]) => (
+                        <div key={k} className="flex items-center gap-1">
+                          <div className="w-3 h-3 rounded" style={{ backgroundColor: v.color }} /><span>{v.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
