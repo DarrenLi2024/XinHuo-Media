@@ -8,7 +8,7 @@ const PUBLIC_API_PATHS = [
 ];
 
 // Static asset prefixes that should be excluded from middleware
-const STATIC_PREFIXES = ['/_next/', '/favicon.ico', '/robots.txt', '/sitemap.xml'];
+const STATIC_PREFIXES = ['/_next/', '/favicon', '/robots.txt', '/sitemap.xml'];
 
 function isStaticAsset(pathname: string): boolean {
   return STATIC_PREFIXES.some((p) => pathname.startsWith(p));
@@ -71,9 +71,9 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - favicon (favicon file)
      * But include /api/* and all page routes
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon).*)',
   ],
 };
