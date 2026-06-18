@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   },
   description:
     '芯火会务管理系统 - 面向芯片行业中小微企业的 AI Native 全栈会务管理平台，让会务管理更智能、更高效。',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   keywords: [
     '芯火会务',
     '会务管理',

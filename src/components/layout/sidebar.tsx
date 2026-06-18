@@ -137,7 +137,7 @@ export function Sidebar() {
       >
         {/* Logo 区域 */}
         <div className="flex h-16 items-center border-b border-border px-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-orange-500">
               <Flame className="h-5 w-5 text-white" />
             </div>
@@ -153,10 +153,10 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="/"
+                href="/dashboard"
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  pathname === '/'
+                  pathname === '/dashboard'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}

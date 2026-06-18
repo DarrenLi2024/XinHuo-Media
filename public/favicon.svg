@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444"/>
+      <stop offset="50%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#eab308"/>
+    </linearGradient>
+  </defs>
+  <!-- 火焰外焰 -->
+  <path d="M16 2C12 8 8 12 7 16C5.5 18 4 21 5 24C6 27 9 30 16 30C23 30 26 27 27 24C28 21 26.5 18 25 16C24 12 20 8 16 2Z" fill="url(#g)" opacity="0.9"/>
+  <!-- 火焰内焰 -->
+  <path d="M16 6C13.5 10.5 11 14 10.5 17C9.8 18.5 9 21 9.5 23C10 25 11.5 27 16 27C20.5 27 22 25 22.5 23C23 21 22.2 18.5 21.5 17C21 14 18.5 10.5 16 6Z" fill="#fff3e0" opacity="0.85"/>
+  <!-- 芯片核心 -->
+  <rect x="12" y="13" width="8" height="6" rx="1" fill="#1e293b"/>
+  <rect x="14" y="11" width="4" height="2" rx="0.5" fill="#475569"/>
+  <rect x="14" y="19" width="4" height="2" rx="0.5" fill="#475569"/>
+  <!-- 左右引脚 -->
+  <rect x="10" y="14" width="2" height="1" rx="0.3" fill="#475569"/>
+  <rect x="10" y="17" width="2" height="1" rx="0.3" fill="#475569"/>
+  <rect x="20" y="14" width="2" height="1" rx="0.3" fill="#475569"/>
+  <rect x="20" y="17" width="2" height="1" rx="0.3" fill="#475569"/>
+</svg>
