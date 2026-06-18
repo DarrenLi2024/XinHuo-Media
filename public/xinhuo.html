@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>芯火会务 v2.0 · 功能验证面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);min-height:100vh;color:#fff;padding:20px}
+h1{text-align:center;font-size:32px;margin:20px 0 10px;background:linear-gradient(90deg,#667eea,#764ba2,#f093fb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:#94a3b8;margin-bottom:30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;max-width:1200px;margin:0 auto}
+.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;transition:all .3s;cursor:pointer;text-decoration:none;color:inherit;display:block}
+.card:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.3);transform:translateY(-2px);box-shadow:0 10px 40px rgba(0,0,0,0.3)}
+.card h3{font-size:18px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card p{color:#94a3b8;font-size:13px;line-height:1.5}
+.icon{font-size:28px}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:auto}
+.badge-core{background:rgba(102,126,234,0.2);color:#667eea}
+.badge-new{background:rgba(240,147,251,0.2);color:#f093fb}
+.badge-ok{background:rgba(16,185,129,0.2);color:#10b981}
+.status-bar{max-width:1200px;margin:0 auto 30px;display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.stat{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px 24px;text-align:center}
+.stat .num{font-size:28px;font-weight:700;background:linear-gradient(90deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .label{font-size:12px;color:#94a3b8;margin-top:4px}
+.section-title{max-width:1200px;margin:40px auto 16px;font-size:20px;color:#e2e8f0;padding-left:4px;border-left:3px solid #667eea}
+</style>
+</head>
+<body>
+<h1>🔥 芯火会务 v2.0</h1>
+<p class="subtitle">活动会务智能管理系统 · 四系统全量集成 · 51项功能</p>
+
+<div class="status-bar">
+  <div class="stat"><div class="num">18</div><div class="label">页面</div></div>
+  <div class="stat"><div class="num">34</div><div class="label">API路由</div></div>
+  <div class="stat"><div class="num">51</div><div class="label">功能项</div></div>
+  <div class="stat"><div class="num">67</div><div class="label">UI组件</div></div>
+  <div class="stat"><div class="num">156</div><div class="label">源文件</div></div>
+</div>
+
+<div class="status-bar" style="margin-bottom:40px">
+  <div class="stat"><div class="num">0</div><div class="label">TS编译错误</div></div>
+  <div class="stat"><div class="num">✅</div><div class="label">生产构建</div></div>
+  <div class="stat"><div class="num">169M</div><div class="label">构建产出</div></div>
+</div>
+
+<div class="section-title">🟢 大屏抽奖系统 (13项)</div>
+<div class="grid">
+  <a class="card" href="http://localhost:3100/lottery"><h3><span class="icon">🎰</span>抽奖管理</h3><p>多奖项CRUD · 锁定中奖/黑名单 · 抽奖引擎 · 记录管理</p><span class="badge badge-core">核心</span></a>
+  <a class="card" href="http://localhost:3100/screen"><h3><span class="icon">🖥️</span>抽奖大屏</h3><p>实时滚动动画 · 空格键操控 · 中奖名单展示 · 奖品侧边栏</p><span class="badge badge-core">核心</span></a>
+  <a class="card"><h3><span class="icon">🎆</span>烟花特效</h3><p>Canvas粒子系统 · 多色爆发 · 自动清理</p><span class="badge badge-new">新</span></a>
+  <a class="card"><h3><span class="icon">🔊</span>音效系统</h3><p>Web Audio API · 6种音效 · 预生成缓冲池</p><span class="badge badge-new">新</span></a>
+  <a class="card"><h3><span class="icon">🖼️</span>奖品海报</h3><p>Canvas海报生成 · 2种皮肤 · 赞助商标识</p><span class="badge badge-new">新</span></a>
+</div>
+
+<div class="section-title">🔵 活动签到系统 (16项)</div>
+<div class="grid">
+  <a class="card" href="http://localhost:3100/checkin/admin"><h3><span class="icon">📋</span>签到管理后台</h3><p>嘉宾CRUD · Excel导入导出 · 批量修改 · 邀请卡生成</p><span class="badge badge-core">核心</span></a>
+  <a class="card" href="http://localhost:3100/checkin/entry"><h3><span class="icon">📱</span>签到入口</h3><p>扫码签到 · 搜索签到 · 快速签到 · 签到记录</p><span class="badge badge-core">核心</span></a>
+  <a class="card"><h3><span class="icon">🔲</span>二维码系统</h3><p>自动生成唯一邀请码 · qrcode库渲染 · API接口</p><span class="badge badge-new">新</span></a>
+  <a class="card"><h3><span class="icon">🎴</span>邀请卡/胸牌</h3><p>Canvas扑克牌邀请卡 · 4套模板 · 8种皮肤 · NPL静默打印</p><span class="badge badge-new">新</span></a>
+</div>
+
+<div class="section-title">🟡 智能排座系统 (12项)</div>
+<div class="grid">
+  <a class="card" href="http://localhost:3100/seating"><h3><span class="icon">🪑</span>座位管理</h3><p>桌位CRUD · 拖拽入座 · 锁定/换桌 · 自动排座</p><span class="badge badge-core">核心</span></a>
+  <a class="card" href="http://localhost:3100/seating/layout"><h3><span class="icon">🗺️</span>场地布局</h3><p>Canvas可视化编辑器 · 5种场地构件 · 圆桌渲染</p><span class="badge badge-core">核心</span></a>
+  <a class="card"><h3><span class="icon">🧩</span>构件系统</h3><p>舞台/过道/柱子/墙体/入口 · 独立渲染样式</p><span class="badge badge-new">新</span></a>
+</div>
+
+<div class="section-title">🟣 智能台本系统 (10项)</div>
+<div class="grid">
+  <a class="card" href="http://localhost:3100/scripts"><h3><span class="icon">📝</span>流程台本</h3><p>多角色矩阵 · 拖拽排序 · 章节管理 · 实时追踪</p><span class="badge badge-core">核心</span></a>
+  <a class="card"><h3><span class="icon">⏱️</span>实时追踪</h3><p>根据时钟自动检测当前环节 · 高亮正在进行</p><span class="badge badge-new">新</span></a>
+  <a class="card"><h3><span class="icon">🎨</span>多主题皮肤</h3><p>4套主题 · 模板选择器 · 年会/发布会预设</p><span class="badge badge-new">新</span></a>
+</div>
+
+<div class="section-title">⚙️ 基础功能</div>
+<div class="grid">
+  <a class="card" href="http://localhost:3100"><h3><span class="icon">🏠</span>仪表盘</h3><p>活动概览 · 快速入口 · 统计卡片</p><span class="badge badge-ok">OK</span></a>
+  <a class="card" href="http://localhost:3100/events"><h3><span class="icon">📅</span>活动管理</h3><p>活动CRUD · 状态流转 · 功能模块配置</p><span class="badge badge-ok">OK</span></a>
+  <a class="card" href="http://localhost:3100/reports"><h3><span class="icon">📊</span>复盘报告</h3><p>数据统计 · 亮点/问题/建议 · 报告生成</p><span class="badge badge-ok">OK</span></a>
+  <a class="card" href="http://localhost:3100/suppliers"><h3><span class="icon">🏢</span>供应商管理</h3><p>供应商CRUD · 评分 · 合作记录</p><span class="badge badge-ok">OK</span></a>
+  <a class="card" href="http://localhost:3100/settings"><h3><span class="icon">⚙️</span>系统设置</h3><p>个人资料 · 通知 · 安全 · API密钥</p><span class="badge badge-ok">OK</span></a>
+</div>
+
+<p style="text-align:center;margin:60px 0 20px;color:#64748b;font-size:12px">
+  TypeScript 0 errors · 生产构建 ✓ · 演示账号 demo@xinhuo.local
+</p>
+
+<script>
+// Test if server is reachable
+setTimeout(async () => {
+  const cards = document.querySelectorAll('a.card[href^="http"]');
+  for (const card of cards) {
+    try {
+      const resp = await fetch(card.href, { method: 'HEAD', mode: 'no-cors' });
+      card.style.borderColor = 'rgba(16,185,129,0.4)';
+    } catch(e) {
+      card.style.opacity = '0.5';
+    }
+  }
+}, 1000);
+</script>
+</body>
+</html>

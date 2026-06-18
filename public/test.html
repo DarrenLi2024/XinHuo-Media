@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>芯火会务 - 登录</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.card { background: white; border-radius: 16px; padding: 40px; width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+h1 { text-align: center; margin-bottom: 8px; color: #1a1a2e; }
+.subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
+.input-group { margin-bottom: 16px; }
+label { display: block; margin-bottom: 6px; font-size: 14px; color: #374151; font-weight: 500; }
+input { width: 100%; padding: 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+button { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); 
+  color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s; }
+button:hover { opacity: 0.95; }
+button:active { transform: scale(0.98); }
+.status { text-align: center; margin-top: 12px; min-height: 20px; font-size: 13px; }
+.success { color: #059669; }
+.error { color: #dc2626; }
+.info { color: #6366f1; }
+.demo { text-align: center; margin-top: 16px; font-size: 12px; color: #9ca3af; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>芯火会务</h1>
+  <p class="subtitle">活动会务智能管理系统 v2.0</p>
+  <div class="input-group">
+    <label>邮箱</label>
+    <input type="email" id="email" placeholder="请输入邮箱" value="demo@xinhuo.local">
+  </div>
+  <div class="input-group">
+    <label>密码</label>
+    <input type="password" id="password" placeholder="请输入密码" value="demo123">
+  </div>
+  <button onclick="doLogin()">登录</button>
+  <div class="status" id="status"></div>
+  <p class="demo">演示账号: demo@xinhuo.local / 任意密码</p>
+</div>
+<script>
+async function doLogin() {
+  const status = document.getElementById('status');
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  
+  status.textContent = '正在登录...';
+  status.className = 'status info';
+  
+  try {
+    const resp = await fetch('http://localhost:3100/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    
+    if (resp.ok || data.data?.user) {
+      status.textContent = '✅ 登录成功! 用户: ' + (data.data?.user?.name || email);
+      status.className = 'status success';
+      
+      // Try API test
+      const eventsResp = await fetch('http://localhost:3100/api/events', { credentials: 'include' });
+      const eventsData = await eventsResp.json();
+      status.textContent += ' | 活动数: ' + (eventsData.data?.length || 0);
+    } else {
+      status.textContent = '❌ 登录失败: ' + (data.error || '未知错误');
+      status.className = 'status error';
+    }
+  } catch(e) {
+    status.textContent = '❌ 网络错误: ' + e.message + ' (服务器可能未启动)';
+    status.className = 'status error';
+  }
+}
+
+// Auto test on load
+setTimeout(doLogin, 500);
+</script>
+</body>
+</html>
