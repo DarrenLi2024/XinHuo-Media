@@ -67,16 +67,21 @@ export function Sidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen border-r transition-all duration-260',
-          'bg-sidebar border-sidebar-border',
+          'fixed left-0 top-0 z-40 h-screen',
+          'bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150',
+          'border-r border-sidebar-border',
+          'transition-all duration-300',
           sidebarCollapsed ? 'w-16' : 'w-64',
         )}
+        style={{
+          background: 'linear-gradient(135deg, hsl(30 20% 97% / 0.78) 0%, hsl(24 50% 96% / 0.70) 50%, hsl(30 15% 94% / 0.75) 100%)',
+        }}
       >
         {/* Logo */}
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Flame className="h-5 w-5 text-sidebar-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-orange-400 shadow-sm">
+              <Flame className="h-5 w-5 text-white drop-shadow-sm" />
             </div>
             {!sidebarCollapsed && (
               <span className="text-base font-semibold text-sidebar-foreground">芯火会务</span>
@@ -85,17 +90,17 @@ export function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {/* Dashboard Home */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
                 href="/dashboard"
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-180',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   pathname === '/dashboard'
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                    : 'text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent/40',
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-orange-500/20'
+                    : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
                 )}
               >
                 <Home className="h-5 w-5" />
@@ -105,13 +110,13 @@ export function Sidebar() {
             {sidebarCollapsed && <TooltipContent side="right">首页概览</TooltipContent>}
           </Tooltip>
 
-          <div className="my-2 h-px bg-sidebar-border/50" />
+          <div className="my-2 h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
 
           {/* Sections */}
           {navigationSections.map((section) => (
             <div key={section.title} className="space-y-0.5">
               {!sidebarCollapsed && (
-                <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35">
                   {section.title}
                 </div>
               )}
@@ -123,10 +128,10 @@ export function Sidebar() {
                       <Link
                         href={item.href}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-180',
+                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                           isActive
-                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                            : 'text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent/40',
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-orange-500/20'
+                            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
                         )}
                       >
                         <item.icon className="h-5 w-5" />
@@ -153,10 +158,10 @@ export function Sidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-180',
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                     pathname === item.href
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                      : 'text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent/40',
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-orange-500/20'
+                      : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -168,17 +173,17 @@ export function Sidebar() {
           ))}
         </div>
 
-        {/* Collapse Toggle */}
+        {/* Collapse Toggle — glass style */}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute -right-3 top-1/2 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar shadow-sm hover:bg-sidebar-accent"
+          className="absolute -right-3 top-1/2 h-6 w-6 rounded-full border border-sidebar-border bg-background/90 backdrop-blur shadow-sm hover:bg-sidebar-accent"
           onClick={toggleSidebar}
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="h-3 w-3 text-sidebar-foreground/60" />
+            <ChevronRight className="h-3 w-3 text-sidebar-foreground/50" />
           ) : (
-            <ChevronLeft className="h-3 w-3 text-sidebar-foreground/60" />
+            <ChevronLeft className="h-3 w-3 text-sidebar-foreground/50" />
           )}
         </Button>
       </aside>

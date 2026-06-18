@@ -117,14 +117,14 @@
   --chart-4: hsl(142, 70%, 45%);
   --chart-5: hsl(221, 83%, 53%);
 
-  /* ─── Sidebar (墨蓝深色) ─── */
-  --sidebar: hsl(220, 30%, 12%);
-  --sidebar-foreground: hsl(30, 20%, 90%);
+  /* ─── Sidebar — 炫彩玻璃透明 ─── */
+  --sidebar: hsl(30 20% 97% / 0.72);
+  --sidebar-foreground: hsl(220, 25%, 15%);
   --sidebar-primary: hsl(24, 92%, 47%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(220, 25%, 18%);
-  --sidebar-accent-foreground: hsl(24, 80%, 65%);
-  --sidebar-border: hsl(220, 20%, 20%);
+  --sidebar-accent: hsl(24 80% 95% / 0.55);
+  --sidebar-accent-foreground: hsl(24, 92%, 35%);
+  --sidebar-border: hsl(30 15% 90% / 0.45);
   --sidebar-ring: hsl(24, 92%, 47%);
 }
 
@@ -159,13 +159,13 @@
   --chart-3: hsl(38, 92%, 50%);
   --chart-4: hsl(142, 70%, 45%);
   --chart-5: hsl(221, 83%, 53%);
-  --sidebar: hsl(220, 30%, 8%);
+  --sidebar: hsl(220 25% 10% / 0.78);
   --sidebar-foreground: hsl(30, 20%, 90%);
   --sidebar-primary: hsl(24, 92%, 47%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(220, 20%, 18%);
+  --sidebar-accent: hsl(24 50% 20% / 0.45);
   --sidebar-accent-foreground: hsl(24, 80%, 65%);
-  --sidebar-border: hsl(220, 15%, 18%);
+  --sidebar-border: hsl(220 15% 22% / 0.4);
   --sidebar-ring: hsl(24, 92%, 47%);
 }
 
@@ -214,7 +214,7 @@
   }
 }
 
-/* ─── 大屏抽奖动画保留 ─── */
+/* ─── 大屏抽奖动画 ─── */
 @keyframes lottery-pulse {
   0%, 100% { transform: scale(1); filter: brightness(1); }
   50% { transform: scale(1.04); filter: brightness(1.25); }
