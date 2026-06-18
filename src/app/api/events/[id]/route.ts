@@ -43,7 +43,7 @@ export async function GET(
 
     const { data: event, error: eventError } = await createServerClient()
       .from('events')
-      .select('id, name, type, status, description, start_time, end_time, location, address, expected_guests, actual_guests, cover_image_url, owner_id, primary_customer_id, budget, actual_cost, settings, tags, created_at, updated_at')
+      .select('id, name, type, status, description, start_time, end_time, location, address, expected_guests, actual_guests, owner_id, primary_customer_id, budget, actual_cost, settings, tags, created_at, updated_at')
       .eq('id', id)
       .single();
 
