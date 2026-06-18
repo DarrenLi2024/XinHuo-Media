@@ -529,3 +529,90 @@ CREATE INDEX IF NOT EXISTS idx_customers_search ON public.customers USING gin (t
 CREATE INDEX IF NOT EXISTS idx_customer_contacts_customer ON public.customer_contacts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_event_customers_event ON public.event_customers(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_customers_customer ON public.event_customers(customer_id);
+
+
+-- ================================================================
+-- P2 新增表 (由全量修复生成)
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS public.budget_lines (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  item TEXT NOT NULL,
+  planned_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  actual_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.sponsors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  level TEXT NOT NULL,
+  level_name TEXT,
+  amount NUMERIC(12,2),
+  contact_name TEXT,
+  contact_phone TEXT,
+  contact_wechat TEXT,
+  contact_email TEXT,
+  logo_url TEXT,
+  company_intro TEXT,
+  booth_needed BOOLEAN DEFAULT false,
+  benefits TEXT[] DEFAULT '{}',
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.forms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID REFERENCES public.events(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  fields JSONB NOT NULL DEFAULT '[]'::JSONB,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.form_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_id UUID NOT NULL REFERENCES public.forms(id) ON DELETE CASCADE,
+  data JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.budget_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sponsors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.forms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "members_read_budget" ON public.budget_lines FOR SELECT USING (public.can_access_event(event_id, 'viewer'));
+CREATE POLICY "managers_manage_budget" ON public.budget_lines FOR ALL USING (public.can_access_event(event_id, 'manager'));
+
+CREATE POLICY "members_read_sponsors" ON public.sponsors FOR SELECT USING (public.can_access_event(event_id, 'viewer'));
+CREATE POLICY "managers_manage_sponsors" ON public.sponsors FOR ALL USING (public.can_access_event(event_id, 'manager'));
+
+CREATE POLICY "staff_read_forms" ON public.forms FOR SELECT USING (public.current_app_role() IN ('super_admin', 'event_manager', 'executor', 'staff'));
+CREATE POLICY "managers_manage_forms" ON public.forms FOR ALL USING (public.current_app_role() IN ('super_admin', 'event_manager'));
+
+CREATE POLICY "staff_read_submissions" ON public.form_submissions FOR SELECT USING (true);
+CREATE POLICY "managers_manage_submissions" ON public.form_submissions FOR ALL USING (public.current_app_role() IN ('super_admin', 'event_manager'));
+
+CREATE INDEX IF NOT EXISTS idx_budget_event ON public.budget_lines(event_id);
+CREATE INDEX IF NOT EXISTS idx_sponsors_event ON public.sponsors(event_id);
+CREATE INDEX IF NOT EXISTS idx_forms_event ON public.forms(event_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_form ON public.form_submissions(form_id);
+
+CREATE OR REPLACE FUNCTION public.decrement_prize_remaining(p_prize_id UUID, p_count INTEGER)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  UPDATE public.lottery_prizes
+  SET remaining = GREATEST(remaining - p_count, 0),
+      updated_at = now()
+  WHERE id = p_prize_id;
+END;
+$$;

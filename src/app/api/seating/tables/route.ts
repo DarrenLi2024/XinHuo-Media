@@ -1,124 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  apiError,
-  parseJsonBody,
-  requireAuth,
-  requireEventAccess,
-  writeAuditLog,
-} from '@/lib/api/security';
-import {
-  createDemoSeatingTable,
-  deleteDemoSeatingTable,
-  listDemoSeatingTables,
-  updateDemoSeatingTableLock,
-  updateDemoSeatingTable,
-} from '@/lib/demo-store';
+import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
+import { listDemoSeatingTables, createDemoSeatingTable, updateDemoSeatingTable, deleteDemoSeatingTable } from '@/lib/demo-store';
+import { apiError, requireAuth, parseJsonBody, writeAuditLog } from '@/lib/api/security';
 
-const tableCreateSchema = z.object({
-  eventId: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  capacity: z.coerce.number().int().min(1).max(1000),
+const createSchema = z.object({
+  eventId: z.string().min(1),
+  name: z.string().min(1),
+  capacity: z.number().int().min(1).max(50),
   shape: z.enum(['round', 'square', 'long']).optional(),
 });
 
-const tableUpdateSchema = z.object({
-  eventId: z.string().uuid(),
-  tableId: z.string().min(1),
-  guestId: z.string().min(1).optional(),
-  targetTableId: z.string().min(1).optional(),
-  locked: z.boolean().optional(),
-  action: z.enum(['add', 'remove', 'lock', 'unlock', 'swap', 'lock-table', 'unlock-table']),
-});
-
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    const eventId = request.nextUrl.searchParams.get('eventId');
+    await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const eventId = searchParams.get('event_id') || '';
 
-    if (!eventId) {
-      return NextResponse.json({ success: false, error: 'eventId is required' }, { status: 400 });
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('seating_zones')
+        .select('*').eq('event_id', eventId).order('created_at', { ascending: true });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, data: data || [] });
     }
-    await requireEventAccess(user, eventId, 'viewer');
 
-    const data = listDemoSeatingTables(eventId);
-    return NextResponse.json({ success: true, data, total: data.length });
+    return NextResponse.json({ success: true, data: listDemoSeatingTables(eventId) });
   } catch (error) {
     return apiError(error);
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    const body = await parseJsonBody(request, tableCreateSchema);
-    await requireEventAccess(user, body.eventId, 'manager');
+    const user = await requireAuth(req);
+    const body = await parseJsonBody(req, createSchema);
 
-    const data = createDemoSeatingTable(body);
-    await writeAuditLog(request, user, 'seating-table.create', 'seating_table', data.id, data);
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('seating_zones').insert({
+        event_id: body.eventId,
+        name: body.name,
+        capacity: body.capacity,
+        shape: body.shape || 'round',
+        guests: [],
+      }).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'table.create', 'seating_zone', data.id, body);
+      return NextResponse.json({ success: true, data }, { status: 201 });
+    }
 
-    return NextResponse.json({ success: true, data, message: '桌位创建成功' });
+    const table = createDemoSeatingTable({ eventId: body.eventId, ...body });
+    return NextResponse.json({ success: true, data: table }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    const body = await parseJsonBody(request, tableUpdateSchema);
-    await requireEventAccess(user, body.eventId, 'executor');
+    const user = await requireAuth(req);
+    const body = await req.json();
+    const { id, ...updates } = body;
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
 
-    let data = null;
-    if (body.action === 'lock-table' || body.action === 'unlock-table') {
-      data = updateDemoSeatingTableLock({ eventId: body.eventId, tableId: body.tableId, locked: body.action === 'lock-table' });
-    } else if (body.guestId) {
-      data = updateDemoSeatingTable({
-        eventId: body.eventId,
-        tableId: body.tableId,
-        guestId: body.guestId,
-        targetTableId: body.targetTableId,
-        action: body.action,
-      });
-    }
-    if (!data) {
-      return NextResponse.json({ success: false, error: '桌位或嘉宾不存在、桌位已满，或目标被锁定' }, { status: 400 });
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('seating_zones').update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, data });
     }
 
-    await writeAuditLog(request, user, 'seating-table.update', 'seating_table', body.tableId, body);
-    const messages: Record<string, string> = {
-      add: '嘉宾已入座',
-      remove: '嘉宾已离座',
-      lock: '嘉宾座位已锁定',
-      unlock: '嘉宾座位已解锁',
-      swap: '嘉宾已换桌',
-      'lock-table': '桌位已锁定',
-      'unlock-table': '桌位已解锁',
-    };
-    return NextResponse.json({ success: true, data, message: messages[body.action] || '桌位已更新' });
+    const table = updateDemoSeatingTable(id, updates);
+    if (!table) return NextResponse.json({ error: '记录不存在' }, { status: 404 });
+    return NextResponse.json({ success: true, data: table });
   } catch (error) {
     return apiError(error);
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    const tableId = request.nextUrl.searchParams.get('tableId');
-    const eventId = request.nextUrl.searchParams.get('eventId');
+    const user = await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id') || '';
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
 
-    if (!eventId || !tableId) {
-      return NextResponse.json({ success: false, error: 'eventId and tableId are required' }, { status: 400 });
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { error } = await supabase.from('seating_zones').delete().eq('id', id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'table.delete', 'seating_zone', id);
+      return NextResponse.json({ success: true });
     }
-    await requireEventAccess(user, eventId, 'manager');
 
-    const deleted = deleteDemoSeatingTable(eventId, tableId);
-    if (!deleted) {
-      return NextResponse.json({ success: false, error: '桌位不存在或仍有嘉宾' }, { status: 400 });
-    }
-
-    await writeAuditLog(request, user, 'seating-table.delete', 'seating_table', tableId, { eventId });
-    return NextResponse.json({ success: true, message: '桌位已删除' });
+    if (!deleteDemoSeatingTable(id)) return NextResponse.json({ error: '记录不存在' }, { status: 404 });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return apiError(error);
   }

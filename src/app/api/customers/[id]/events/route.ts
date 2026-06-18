@@ -1,29 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
 import { listDemoCustomerEvents } from '@/lib/demo-store';
-import { apiError, requireAuth, requireMinimumRole } from '@/lib/api/security';
+import { apiError, requireAuth } from '@/lib/api/security';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
-    const user = await requireAuth(request);
-    requireMinimumRole(user, 'staff');
+    await requireAuth(_req);
+    const { id: customerId } = await params;
 
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ data: listDemoCustomerEvents(id) });
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data } = await supabase.from('event_customers')
+        .select('*, events:events(*)').eq('customer_id', customerId);
+      return NextResponse.json({ success: true, data: data || [] });
     }
 
-    const { data, error } = await supabase
-      .from('event_customers')
-      .select('*, events(*), customer_contacts(*)')
-      .eq('customer_id', id)
-      .order('created_at', { ascending: false });
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data || [] });
+    return NextResponse.json({ success: true, data: listDemoCustomerEvents(customerId) });
   } catch (error) {
     return apiError(error);
   }

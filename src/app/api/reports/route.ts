@@ -1,123 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
+import { deepseek } from '@/lib/ai/deepseek';
+import { getDemoRosterStats, listDemoAttendeeEntries, getDemoReportPayload } from '@/lib/demo-store';
 import { apiError, requireAuth, parseJsonBody, writeAuditLog } from '@/lib/api/security';
 
-const reportCreateSchema = z.object({
-  id: z.string().optional(),
+const createSchema = z.object({
   event_id: z.string().min(1),
   title: z.string().min(1).max(200),
-  summary: z.string().max(5000).optional(),
+  summary: z.string().optional(),
 });
 
-// 深度复盘报告 API — 聚合 roster + events + tasks + budget 全维度数据
+const SYSTEM_PROMPT = `你是芯火会务管理系统的 AI 复盘分析师，专门为芯片行业活动生成深度复盘报告。
+请基于提供的活动数据，生成结构化的复盘报告，包含以下部分：
+1. 活动概况（签到率、嘉宾规模、执行质量）
+2. 数据亮点（签到、预算、赞助商、任务完成率）
+3. 问题分析（流程瓶颈、异常情况）
+4. 改进建议（具体可执行的优化措施）
+使用专业正式的中文表达，Markdown 格式。`;
 
-async function gatherReportData(origin: string, eventId: string) {
-  const [rosterRes, eventsRes, tasksRes, budgetRes] = await Promise.all([
-    fetch(`${origin}/api/roster?event_id=${eventId}&type=all`),
-    fetch(`${origin}/api/events/${eventId}`),
-    fetch(`${origin}/api/tasks?event_id=${eventId}`),
-    fetch(`${origin}/api/budget?event_id=${eventId}`),
+async function gatherSupabaseData(eventId: string) {
+  const supabase = createServerClient();
+
+  const [guestsRes, eventsRes, tasksRes, budgetRes] = await Promise.all([
+    supabase.from('guests').select('*', { count: 'exact', head: false }).eq('event_id', eventId),
+    supabase.from('events').select('*').eq('id', eventId).single(),
+    supabase.from('event_tasks').select('*').eq('event_id', eventId),
+    supabase.from('budget_lines').select('*').eq('event_id', eventId),
   ]);
 
-  const rosterJson = await rosterRes.json();
-  const eventsJson = await eventsRes.json();
-  const tasksData = await tasksRes.json();
-  const budgetData = await budgetRes.json();
+  const guests = guestsRes.data || [];
+  const totalGuests = guests.length;
+  const checkedIn = guests.filter((g) => g.check_in_status === 'checked_in').length;
+  const checkInRate = totalGuests > 0 ? Math.round((checkedIn / totalGuests) * 100) : 0;
 
-  const roster = rosterJson.success ? rosterJson.data : {};
-  const stats = roster.stats || {};
-  const execTeam = roster.exec_team || [];
-  const guests = roster.guests || [];
-  const sponsors = roster.sponsors || [];
-  const attendees = roster.attendees || [];
-  const event = eventsJson.success ? eventsJson.data : eventsJson.data || {};
-  const tasks = tasksData.success ? tasksData.data : [];
-  const budget = budgetData.success ? budgetData.data : { lines: [], summary: {} };
+  const tasks = tasksRes.data || [];
+  const tasksCompleted = tasks.filter((t) => t.status === 'completed').length;
+  const taskRate = tasks.length > 0 ? Math.round((tasksCompleted / tasks.length) * 100) : 0;
 
-  // 出席统计
-  const checkedIn = attendees.filter((a: { checkin_status: string }) => a.checkin_status === 'checked_in');
-  const guestConfirmed = guests.filter((g: { status: string }) => g.status === 'confirmed' || g.status === 'attended');
+  const budgetLines = budgetRes.data || [];
+  const budgetPlanned = budgetLines.reduce((s, l) => s + (Number(l.planned_amount) || 0), 0);
+  const budgetActual = budgetLines.reduce((s, l) => s + (Number(l.actual_amount) || 0), 0);
 
   return {
-    event,
-    execTeam,
-    guests,
-    sponsors,
-    attendees,
-    tasks,
-    budget,
-    stats: {
-      // 出席
-      registered: attendees.length,
-      attended: checkedIn.length,
-      rate: attendees.length > 0 ? Math.round((checkedIn.length / attendees.length) * 100) : 0,
-      vip_count: attendees.filter((a: { tags: string[] }) => a.tags?.includes('VIP')).length,
-      guest_confirmed: guestConfirmed.length,
-      guest_attended: guests.filter((g: { status: string }) => g.status === 'attended').length,
-      no_show: attendees.filter((a: { checkin_status: string }) => a.checkin_status !== 'checked_in').length,
-      by_source: attendees.reduce((acc: Record<string, number>, a: { source: string }) => {
-        acc[a.source || '其他'] = (acc[a.source || '其他'] || 0) + 1; return acc;
-      }, {}),
-
-      // 任务
-      tasks_total: tasks.length,
-      tasks_completed: tasks.filter((t: { status: string }) => t.status === 'completed').length,
-      tasks_in_progress: tasks.filter((t: { status: string }) => t.status === 'in_progress').length,
-      tasks_delayed: tasks.filter((t: { status: string }) => t.status === 'delayed').length,
-      tasks_completion_rate: tasks.length > 0
-        ? Math.round((tasks.filter((t: { status: string }) => t.status === 'completed').length / tasks.length) * 100)
-        : 0,
-
-      // 赞助
-      sponsor_count: sponsors.length,
-      sponsor_amount: sponsors.reduce((s: number, sp: { amount: number }) => s + (sp.amount || 0), 0),
-      sponsor_paid: sponsors.filter((sp: { payment_status: string }) => sp.payment_status === 'paid').length,
-      sponsor_by_level: sponsors.reduce((acc: Record<string, { count: number; amount: number }>, sp: { level: string; amount: number }) => {
-        const lv = sp.level || 'other';
-        if (!acc[lv]) acc[lv] = { count: 0, amount: 0 };
-        acc[lv].count++; acc[lv].amount += sp.amount || 0; return acc;
-      }, {}),
-
-      // 预算
-      budget_total: budget.summary?.total_budget || event.budget || 0,
-      budget_actual: budget.summary?.total_actual || event.actual_cost || 0,
-      budget_variance: (budget.summary?.total_budget || 0) - (budget.summary?.total_actual || 0),
-      budget_lines: budget.lines || [],
-
-      // 抽奖 (简化)
-      lottery_participants: checkedIn.length,
-
-      // 供应商 (从预算行中提取)
-      supplier_count: 0,
-      supplier_avg_rating: 0,
-
-      // 执行小组
-      exec_team_count: execTeam.length,
-    },
+    eventName: (eventsRes.data as Record<string, unknown> | null)?.name || '未知活动',
+    totalGuests,
+    checkedIn,
+    checkInRate,
+    tasksCompleted,
+    tasksTotal: tasks.length,
+    taskRate,
+    budgetPlanned,
+    budgetActual,
+    budgetRate: budgetPlanned > 0 ? Math.round((budgetActual / budgetPlanned) * 100) : 0,
   };
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    await requireAuth(request);
-    const eventId = request.nextUrl.searchParams.get('event_id');
-    if (!eventId) return NextResponse.json({ success: false, error: '缺少 event_id' }, { status: 400 });
+    const user = await requireAuth(req);
+    const body = await parseJsonBody(req, createSchema);
 
-    const data = await gatherReportData(request.nextUrl.origin, eventId);
-    return NextResponse.json({ success: true, data });
+    let dataSummary: string;
+    let eventName = '未知活动';
+
+    if (isSupabaseConfigured()) {
+      const data = await gatherSupabaseData(body.event_id);
+      eventName = data.eventName;
+      dataSummary = JSON.stringify(data, null, 2);
+    } else {
+      const payload = getDemoReportPayload(body.event_id);
+      if ('exists' in payload && payload.exists) {
+        eventName = payload.report.title;
+        dataSummary = JSON.stringify(payload.report.statistics, null, 2);
+      } else {
+        eventName = (payload as { event?: { name?: string } }).event?.name || '未知活动';
+        dataSummary = JSON.stringify((payload as { statistics?: unknown }).statistics || {}, null, 2);
+      }
+    }
+
+    // 用 DeepSeek Pro 生成报告
+    let content: string;
+    if (deepseek.isConfigured()) {
+      try {
+        const result = await deepseek.pro(
+          `活动：${eventName}\n数据：${dataSummary}\n\n请生成完整的活动复盘报告。`,
+          SYSTEM_PROMPT,
+        );
+        content = result.content;
+      } catch {
+        content = `## ${body.title || eventName + ' 复盘报告'}\n\n> AI 生成失败，使用基础模板。\n\n${dataSummary}`;
+      }
+    } else {
+      content = `## ${body.title || eventName + ' 复盘报告'}\n\n> ⚠️ DeepSeek API Key 未配置，使用数据摘要。\n\n${dataSummary}`;
+    }
+
+    const reportData = {
+      title: body.title || `${eventName} 复盘报告`,
+      summary: body.summary || content.slice(0, 500),
+      highlights: [],
+      issues: [],
+      recommendations: [],
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('event_reports').insert({
+        event_id: body.event_id,
+        title: reportData.title,
+        summary: reportData.summary,
+        statistics: { content, generated_by: deepseek.isConfigured() ? 'deepseek-reasoner' : 'template' },
+        status: 'published',
+      }).select().single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'report.create', 'report', data.id);
+      return NextResponse.json({ success: true, data: { ...data, full_content: content } }, { status: 201 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { ...reportData, full_content: content, statistics: { content } },
+    }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }
 }
 
-// POST — 保存复盘报告
-export async function POST(request: NextRequest) {
+// GET /api/reports?event_id=...
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    const body = await parseJsonBody(request, reportCreateSchema);
-    const report = { ...body, id: body.id || crypto.randomUUID(), updated_at: new Date().toISOString() };
-    await writeAuditLog(request, user, 'report.create', 'report', report.id, report);
-    return NextResponse.json({ success: true, data: report });
+    await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const eventId = searchParams.get('event_id');
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      let query = supabase.from('event_reports').select('*').order('created_at', { ascending: false });
+      if (eventId) query = query.eq('event_id', eventId);
+      const { data, error } = await query;
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, data: data || [] });
+    }
+
+    // Demo fallback
+    if (eventId) {
+      const payload = getDemoReportPayload(eventId);
+      if ('exists' in payload && payload.exists) {
+        return NextResponse.json({ success: true, data: [payload.report] });
+      }
+    }
+    return NextResponse.json({ success: true, data: [] });
   } catch (error) {
     return apiError(error);
   }

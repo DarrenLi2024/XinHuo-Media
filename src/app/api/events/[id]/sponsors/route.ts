@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import type { Sponsor } from '@/types/sponsor';
+import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
 import { listDemoSponsors, createDemoSponsor, updateDemoSponsor, deleteDemoSponsor } from '@/lib/demo-store';
 import { apiError, requireAuth, parseJsonBody, writeAuditLog } from '@/lib/api/security';
 
@@ -20,14 +20,19 @@ const createSchema = z.object({
   notes: z.string().optional(),
 });
 
-const updateSchema = createSchema.partial();
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAuth(_req);
     const { id: eventId } = await params;
-    const sponsors = listDemoSponsors(eventId);
-    return NextResponse.json({ success: true, data: sponsors });
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('sponsors').select('*').eq('event_id', eventId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, data: data || [] });
+    }
+
+    return NextResponse.json({ success: true, data: listDemoSponsors(eventId) });
   } catch (error) {
     return apiError(error);
   }
@@ -37,41 +42,67 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const user = await requireAuth(req);
     const { id: eventId } = await params;
-    const parsed = await parseJsonBody(req, createSchema);
-    const sponsor = createDemoSponsor({ ...parsed, event_id: eventId, level: parsed.level as Parameters<typeof createDemoSponsor>[0]['level'] });
-    await writeAuditLog(req, user, 'sponsor.create', 'sponsor', sponsor.id, sponsor);
+    const body = await parseJsonBody(req, createSchema);
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('sponsors').insert({
+        event_id: eventId,
+        ...body,
+      }).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'sponsor.create', 'sponsor', data.id, body);
+      return NextResponse.json({ success: true, data }, { status: 201 });
+    }
+
+    const sponsor = createDemoSponsor(eventId, body);
     return NextResponse.json({ success: true, data: sponsor }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest) {
   try {
     const user = await requireAuth(req);
-    const { id: eventId } = await params;
     const body = await req.json();
-    const { sponsor_id, ...updates } = body;
-    if (!sponsor_id) return NextResponse.json({ success: false, error: '缺少sponsor_id' }, { status: 400 });
-    const parsed = updateSchema.safeParse(updates);
-    if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
-    const sponsor = updateDemoSponsor(sponsor_id, parsed.data as Partial<Sponsor>);
-    if (!sponsor) return NextResponse.json({ success: false, error: '赞助商不存在' }, { status: 404 });
-    await writeAuditLog(req, user, 'sponsor.update', 'sponsor', sponsor_id, updates);
+    const { id, ...updates } = body;
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('sponsors').update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, data });
+    }
+
+    const sponsor = updateDemoSponsor(id, updates);
+    if (!sponsor) return NextResponse.json({ error: '赞助商不存在' }, { status: 404 });
     return NextResponse.json({ success: true, data: sponsor });
   } catch (error) {
     return apiError(error);
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest) {
   try {
     const user = await requireAuth(req);
     const { searchParams } = new URL(req.url);
-    const sponsorId = searchParams.get('sponsor_id') || '';
-    const deleted = deleteDemoSponsor(sponsorId);
-    if (!deleted) return NextResponse.json({ success: false, error: '赞助商不存在' }, { status: 404 });
-    await writeAuditLog(req, user, 'sponsor.delete', 'sponsor', sponsorId);
+    const id = searchParams.get('id') || '';
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { error } = await supabase.from('sponsors').delete().eq('id', id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'sponsor.delete', 'sponsor', id);
+      return NextResponse.json({ success: true });
+    }
+
+    if (!deleteDemoSponsor(id)) return NextResponse.json({ error: '赞助商不存在' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
     return apiError(error);

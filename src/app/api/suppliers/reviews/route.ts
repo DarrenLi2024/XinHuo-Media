@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { listDemoSupplierReviews, createDemoSupplierReview, deleteDemoSupplierReview } from '@/lib/demo-store';
+import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
+import { listDemoSupplierReviews, createDemoSupplierReview } from '@/lib/demo-store';
 import { apiError, requireAuth, parseJsonBody, writeAuditLog } from '@/lib/api/security';
 
 const createSchema = z.object({
   supplier_id: z.string().min(1),
   event_id: z.string().optional(),
-  rating: z.number().min(1).max(5),
-  quality_score: z.number().min(1).max(5).optional(),
-  delivery_score: z.number().min(1).max(5).optional(),
-  communication_score: z.number().min(1).max(5).optional(),
+  rating: z.number().min(0).max(5),
   content: z.string().optional(),
 });
 
@@ -17,9 +15,16 @@ export async function GET(req: NextRequest) {
   try {
     await requireAuth(req);
     const { searchParams } = new URL(req.url);
-    const supplierId = searchParams.get('supplier_id') || '';
-    const reviews = listDemoSupplierReviews(supplierId);
-    return NextResponse.json({ success: true, data: reviews });
+    const supplierId = searchParams.get('supplier_id');
+
+    if (isSupabaseConfigured() && supplierId) {
+      const supabase = createServerClient();
+      const { data } = await supabase.from('supplier_reviews')
+        .select('*').eq('supplier_id', supplierId).order('created_at', { ascending: false });
+      return NextResponse.json({ success: true, data: data || [] });
+    }
+
+    return NextResponse.json({ success: true, data: listDemoSupplierReviews(supplierId || '') });
   } catch (error) {
     return apiError(error);
   }
@@ -28,24 +33,24 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth(req);
-    const parsed = await parseJsonBody(req, createSchema);
-    const review = createDemoSupplierReview(parsed);
-    await writeAuditLog(req, user, 'supplier.review.create', 'review', review.id, review);
-    return NextResponse.json({ success: true, data: review }, { status: 201 });
-  } catch (error) {
-    return apiError(error);
-  }
-}
+    const body = await parseJsonBody(req, createSchema);
 
-export async function DELETE(req: NextRequest) {
-  try {
-    const user = await requireAuth(req);
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id') || '';
-    const deleted = deleteDemoSupplierReview(id);
-    if (!deleted) return NextResponse.json({ success: false, error: '评价不存在' }, { status: 404 });
-    await writeAuditLog(req, user, 'supplier.review.delete', 'review', id);
-    return NextResponse.json({ success: true });
+    if (isSupabaseConfigured()) {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.from('supplier_reviews').insert({
+        supplier_id: body.supplier_id,
+        event_id: body.event_id,
+        rating: body.rating,
+        content: body.content,
+        created_by: user.id,
+      }).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await writeAuditLog(req, user, 'review.create', 'supplier_review', data.id, body);
+      return NextResponse.json({ success: true, data }, { status: 201 });
+    }
+
+    const review = createDemoSupplierReview(body);
+    return NextResponse.json({ success: true, data: review }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }
