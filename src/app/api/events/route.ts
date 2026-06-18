@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         budget: body.budget || 0,
         settings: body.settings,
         owner_id: user.id,
-        created_by: user.id,
+        
         status: 'draft',
       })
       .select()
