@@ -18,12 +18,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Sidebar />
         <div
           className={cn(
-            'transition-all duration-300',
-            sidebarCollapsed ? 'ml-16' : 'ml-64'
+            'flex flex-col transition-all duration-260',
+            sidebarCollapsed ? 'ml-16' : 'ml-64',
           )}
         >
           <Header />
-          <main className="p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
     </AuthGate>

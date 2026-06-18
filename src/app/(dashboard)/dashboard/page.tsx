@@ -200,7 +200,7 @@ export default function HomePage() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">首页概览</h1>
+          <h1 className="text-2xl font-semibold font-serif text-foreground">首页概览</h1>
           <p className="text-muted-foreground">芯火会务管理系统 — 让会务管理更智能</p>
         </div>
         <Button asChild>
@@ -287,7 +287,7 @@ export default function HomePage() {
       {/* 快捷入口 — 6大核心模块 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">功能模块</CardTitle>
+          <CardTitle className="text-lg font-serif">功能模块</CardTitle>
           <CardDescription>芯火会务核心功能，覆盖活动全流程</CardDescription>
         </CardHeader>
         <CardContent>
@@ -314,7 +314,7 @@ export default function HomePage() {
         {/* 近期活动 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">近期活动</CardTitle>
+            <CardTitle className="text-lg font-serif">近期活动</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/events">查看全部 <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
@@ -366,7 +366,7 @@ export default function HomePage() {
         {/* 待办任务 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">待办任务</CardTitle>
+            <CardTitle className="text-lg font-serif">待办任务</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/events/tasks">查看全部 <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
