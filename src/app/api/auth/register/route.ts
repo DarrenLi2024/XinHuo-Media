@@ -8,7 +8,7 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
   name: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
-  code: z.string().min(1).max(128).optional(),
+  code: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -23,16 +23,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 注册码校验：环境变量 REGISTRATION_CODE 若设置，则必须匹配
-    const expectedCode = process.env.REGISTRATION_CODE;
-    if (expectedCode && body.code !== expectedCode) {
-      return NextResponse.json(
-        { error: '注册码无效，请联系管理员获取' },
-        { status: 403 },
-      );
+    const supabase = createServerClient();
+
+    // 注册码校验：如果已存在用户，则必须有注册码
+    const existingCount = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+
+    // 第一个用户（管理员）不需要注册码；后续注册需要
+    if ((existingCount.count ?? 0) > 0) {
+      const expectedCode = process.env.REGISTRATION_CODE;
+      if (expectedCode && body.code !== expectedCode) {
+        return NextResponse.json(
+          { error: '注册码无效，请联系管理员获取' },
+          { status: 403 },
+        );
+      }
     }
 
-    const supabase = createServerClient();
     const { data, error } = await supabase.auth.signUp({
       email: body.email,
       password: body.password,
@@ -47,11 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error?.message || '注册失败' }, { status: 400 });
     }
 
-    // 第一个注册的用户自动成为 super_admin（触发器已创建 staff，此处更新为 super_admin）
-    const { count } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true });
-    const role = (count ?? 0) <= 1 ? 'super_admin' : 'staff';
+    // 第一个注册的用户 = super_admin
+    const role = (existingCount.count ?? 0) === 0 ? 'super_admin' : 'staff';
 
     const { error: profileError } = await supabase
       .from('users')
