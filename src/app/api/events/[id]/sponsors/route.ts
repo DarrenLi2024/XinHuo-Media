@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, data }, { status: 201 });
     }
 
-    const sponsor = createDemoSponsor(eventId, body);
+    const sponsor = createDemoSponsor({ event_id: eventId, ...body } as Parameters<typeof createDemoSponsor>[0]);
     return NextResponse.json({ success: true, data: sponsor }, { status: 201 });
   } catch (error) {
     return apiError(error);

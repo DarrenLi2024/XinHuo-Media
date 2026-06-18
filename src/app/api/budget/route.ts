@@ -69,7 +69,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data }, { status: 201 });
     }
 
-    const line = createDemoBudgetLine(body);
+    const line = createDemoBudgetLine({
+      event_id: body.event_id,
+      category: body.category as 'venue' | 'construction' | 'catering' | 'materials' | 'gifts' | 'personnel' | 'transport' | 'other',
+      description: body.item,
+      budget_amount: body.planned_amount,
+      actual_amount: body.actual_amount,
+      notes: body.notes,
+    });
     return NextResponse.json({ success: true, data: line }, { status: 201 });
   } catch (error) {
     return apiError(error);

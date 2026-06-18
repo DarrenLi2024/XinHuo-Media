@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data }, { status: 201 });
     }
 
-    const table = createDemoSeatingTable({ eventId: body.eventId, ...body });
+    const table = createDemoSeatingTable({ ...body, eventId: body.eventId });
     return NextResponse.json({ success: true, data: table }, { status: 201 });
   } catch (error) {
     return apiError(error);
@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: true, data });
     }
 
-    const table = updateDemoSeatingTable(id, updates);
+    const table = updateDemoSeatingTable({ id, ...updates });
     if (!table) return NextResponse.json({ error: '记录不存在' }, { status: 404 });
     return NextResponse.json({ success: true, data: table });
   } catch (error) {
@@ -97,7 +97,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (!deleteDemoSeatingTable(id)) return NextResponse.json({ error: '记录不存在' }, { status: 404 });
+    if (!deleteDemoSeatingTable("", id)) return NextResponse.json({ error: '记录不存在' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
     return apiError(error);

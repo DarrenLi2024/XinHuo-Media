@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: data || [] });
     }
 
-    return NextResponse.json({ success: true, data: listDemoForms() });
+    return NextResponse.json({ success: true, data: listDemoForms("") });
   } catch (error) {
     return apiError(error);
   }
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data }, { status: 201 });
     }
 
-    const form = createDemoForm(body);
+    const form = createDemoForm(body as any);
     return NextResponse.json({ success: true, data: form }, { status: 201 });
   } catch (error) {
     return apiError(error);

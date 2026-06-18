@@ -66,13 +66,13 @@ export async function POST(req: NextRequest) {
 
     if (isSupabaseConfigured()) {
       const data = await gatherSupabaseData(body.event_id);
-      eventName = data.eventName;
+      eventName = data.eventName as string;
       dataSummary = JSON.stringify(data, null, 2);
     } else {
       const payload = getDemoReportPayload(body.event_id);
       if ('exists' in payload && payload.exists) {
-        eventName = payload.report.title;
-        dataSummary = JSON.stringify(payload.report.statistics, null, 2);
+        eventName = ((payload as any).report as {title: string}).title;
+        dataSummary = JSON.stringify((payload as any).report.statistics, null, 2);
       } else {
         eventName = (payload as { event?: { name?: string } }).event?.name || '未知活动';
         dataSummary = JSON.stringify((payload as { statistics?: unknown }).statistics || {}, null, 2);
@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
     if (eventId) {
       const payload = getDemoReportPayload(eventId);
       if ('exists' in payload && payload.exists) {
-        return NextResponse.json({ success: true, data: [payload.report] });
+        return NextResponse.json({ success: true, data: [(payload as any).report] });
       }
     }
     return NextResponse.json({ success: true, data: [] });
