@@ -34,13 +34,13 @@ export async function GET(req: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       const lines = data || [];
-      const planned = lines.reduce((s: number, l: Record<string, unknown>) => s + (Number(l.planned_amount) || 0), 0);
+      const planned = lines.reduce((s: number, l: Record<string, unknown>) => s + (Number(l.budget_amount) || 0), 0);
       const actual = lines.reduce((s: number, l: Record<string, unknown>) => s + (Number(l.actual_amount) || 0), 0);
       return NextResponse.json({ success: true, data: { lines, planned, actual } });
     }
 
     const lines = listDemoBudgetLines(eventId);
-    const planned = lines.reduce((s, l) => s + l.planned_amount, 0);
+    const planned = lines.reduce((s, l) => s + l.budget_amount, 0);
     const actual = lines.reduce((s, l) => s + (l.actual_amount || 0), 0);
     return NextResponse.json({ success: true, data: { lines, planned, actual } });
   } catch (error) {
