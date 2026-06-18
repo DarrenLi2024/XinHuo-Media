@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, isSupabaseConfigured } from '@/lib/supabase';
-import { getDemoFormSubmissions } from '@/lib/demo-store';
+import { listDemoFormSubmissions } from '@/lib/demo-store';
 import { apiError, requireAuth } from '@/lib/api/security';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, data: data || [] });
     }
 
-    return NextResponse.json({ success: true, data: getDemoFormSubmissions(formId) });
+    return NextResponse.json({ success: true, data: listDemoFormSubmissions(formId) });
   } catch (error) {
     return apiError(error);
   }
