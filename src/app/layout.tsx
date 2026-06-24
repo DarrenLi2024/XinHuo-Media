@@ -9,9 +9,14 @@ export const metadata: Metadata = {
   description:
     '芯火会务管理系统 - 面向芯片行业中小微企业的 AI Native 全栈会务管理平台，让会务管理更智能、更高效。',
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   keywords: [
     '芯火会务',
