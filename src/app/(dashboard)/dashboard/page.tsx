@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,16 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
-
-type DashboardStats = {
-  totalEvents: number;
-  activeEvents: number;
-  totalGuests: number;
-  checkedInGuests: number;
-  checkInRate: number;
-  pendingTasks: number;
-  totalTasks: number;
-};
+import { useEvents, useRosterStats, useTasks } from '@/hooks/use-data';
 
 type RecentEvent = {
   id: string;
@@ -37,7 +28,7 @@ type RecentEvent = {
   status: string;
   start_time: string;
   expected_guests: number;
-  actual_guests: number;
+  actual_guests?: number;
 };
 
 type PendingTask = {
@@ -74,74 +65,53 @@ const priorityMap: Record<string, { label: string; className: string }> = {
   low: { label: '低', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
 };
 
-const defaultStats: DashboardStats = {
-  totalEvents: 0,
-  activeEvents: 0,
-  totalGuests: 0,
-  checkedInGuests: 0,
-  checkInRate: 0,
-  pendingTasks: 0,
-  totalTasks: 0,
-};
-
 export default function HomePage() {
-  const [stats, setStats] = useState<DashboardStats>(defaultStats);
-  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
-  const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  // 使用 SWR hooks 进行数据请求（自动缓存、去重）
+  const { data: eventsData, isLoading: eventsLoading } = useEvents(undefined, undefined, 5);
+  const { data: rosterData, isLoading: rosterLoading } = useRosterStats();
+  const { data: tasksData, isLoading: tasksLoading } = useTasks('pending,in_progress', undefined, 10);
 
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const [eventsRes, rosterRes, tasksRes] = await Promise.all([
-          fetch('/api/events?limit=5').then((r) => r.json()),
-          fetch('/api/roster?event_id=all&type=stats').then((r) => r.json()),
-          fetch('/api/tasks?status=pending,in_progress&limit=10').then((r) => r.json()),
-        ]);
+  // 合并加载状态
+  const loading = eventsLoading || rosterLoading || tasksLoading;
 
-        // 统计
-        const eventsList = eventsRes.data || eventsRes.success ? (eventsRes.data || []) : [];
-        const rosterStats = rosterRes.data || {};
-        const tasksList = tasksRes.data || [];
+  // 计算统计数据（使用 useMemo 缓存计算结果）
+  const stats = useMemo(() => {
+    const eventsList = eventsData?.data || [];
+    const rosterStats = rosterData?.data || {};
+    const tasksList = tasksData?.data || [];
 
-        setStats({
-          totalEvents: eventsList.length,
-          activeEvents: eventsList.filter((e: RecentEvent) =>
-            ['preparing', 'ongoing'].includes(e.status),
-          ).length,
-          totalGuests: rosterStats.total || rosterStats.total_guests || 0,
-          checkedInGuests: rosterStats.checkedIn || rosterStats.attendee_checked_in || 0,
-          checkInRate: rosterStats.checkInRate || rosterStats.check_in_rate || 0,
-          pendingTasks: tasksList.filter(
-            (t: PendingTask) => ['pending', 'in_progress'].includes(t.status),
-          ).length,
-          totalTasks: tasksList.length,
-        });
+    return {
+      totalEvents: eventsList.length,
+      activeEvents: eventsList.filter((e: RecentEvent) =>
+        ['preparing', 'ongoing'].includes(e.status),
+      ).length,
+      totalGuests: rosterStats.total || rosterStats.total_guests || 0,
+      checkedInGuests: rosterStats.checkedIn || rosterStats.attendee_checked_in || 0,
+      checkInRate: rosterStats.checkInRate || rosterStats.check_in_rate || 0,
+      pendingTasks: tasksList.filter(
+        (t: PendingTask) => ['pending', 'in_progress'].includes(t.status),
+      ).length,
+      totalTasks: tasksList.length,
+    };
+  }, [eventsData, rosterData, tasksData]);
 
-        // 近期活动
-        setRecentEvents(eventsList.slice(0, 5));
+  // 近期活动（使用 useMemo 缓存）
+  const recentEvents = useMemo(() => {
+    const eventsList = eventsData?.data || [];
+    return eventsList.slice(0, 5) as RecentEvent[];
+  }, [eventsData]);
 
-        // 待办任务
-        setPendingTasks(
-          tasksList
-            .filter((t: PendingTask) => ['pending', 'in_progress'].includes(t.status))
-            .sort((a: PendingTask, b: PendingTask) => {
-              const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-              return (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
-            })
-            .slice(0, 6),
-        );
-      } catch (err) {
-        setError('数据加载失败，请稍后重试');
-        console.error('Dashboard load error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadDashboard();
-  }, []);
+  // 待办任务（使用 useMemo 缓存排序结果）
+  const pendingTasks = useMemo(() => {
+    const tasksList = tasksData?.data || [];
+    return tasksList
+      .filter((t: PendingTask) => ['pending', 'in_progress'].includes(t.status))
+      .sort((a: PendingTask, b: PendingTask) => {
+        const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+        return (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+      })
+      .slice(0, 6) as PendingTask[];
+  }, [tasksData]);
 
   // 快捷入口配置
   const quickLinks = [
@@ -420,15 +390,6 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* 错误提示 */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="py-3">
-            <p className="text-sm text-red-600">{error}</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -71,8 +71,10 @@ export async function POST(req: NextRequest) {
     } else {
       const payload = getDemoReportPayload(body.event_id);
       if ('exists' in payload && payload.exists) {
-        eventName = ((payload as any).report as {title: string}).title;
-        dataSummary = JSON.stringify((payload as any).report.statistics, null, 2);
+        type DemoPayloadWithReport = { exists: true; report: { title: string; statistics: Record<string, unknown> } };
+        const demoPayload = payload as DemoPayloadWithReport;
+        eventName = demoPayload.report.title;
+        dataSummary = JSON.stringify(demoPayload.report.statistics, null, 2);
       } else {
         eventName = (payload as { event?: { name?: string } }).event?.name || '未知活动';
         dataSummary = JSON.stringify((payload as { statistics?: unknown }).statistics || {}, null, 2);
@@ -147,7 +149,8 @@ export async function GET(req: NextRequest) {
     if (eventId) {
       const payload = getDemoReportPayload(eventId);
       if ('exists' in payload && payload.exists) {
-        return NextResponse.json({ success: true, data: [(payload as any).report] });
+        const demoPayload = payload as { exists: true; report: Record<string, unknown> };
+        return NextResponse.json({ success: true, data: [demoPayload.report] });
       }
     }
     return NextResponse.json({ success: true, data: [] });

@@ -28,7 +28,7 @@ async function supabaseAutoArrange(eventId: string, strategy: string) {
   let arranged = 0;
 
   // 根据策略排序宾客
-  let sortedGuests = [...guests];
+  const sortedGuests = [...guests];
   if (strategy === 'vip-first') {
     const levelOrder: Record<string, number> = { vip: 0, important: 1, normal: 2 };
     sortedGuests.sort((a, b) => (levelOrder[a.level as string] ?? 2) - (levelOrder[b.level as string] ?? 2));

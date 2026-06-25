@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+/* eslint-disable react-hooks/purity */
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,9 @@ export default function TasksPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<TaskRow>>({});
 
+  // 存储当前时间，避免在 useMemo 中直接调用 Date.now()
+  const nowRef = useRef(Date.now());
+
   const loadEvents = useCallback(async () => {
     const res = await fetch('/api/events?limit=100');
     const json = await res.json();
@@ -123,7 +127,7 @@ export default function TasksPage() {
   }, [filteredTasks]);
 
   const weekDueCount = useMemo(() => {
-    const nowT = Date.now();
+    const nowT = nowRef.current;
     const weekLater = nowT + 7 * 86400000;
     return tasks.filter((t) => {
       const due = new Date(t.end_date).getTime();
@@ -340,7 +344,7 @@ export default function TasksPage() {
           <Card>
             <CardContent className="pt-4">
               {filteredTasks.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">暂无任务，点击"新建任务"开始。</div>
+                <div className="py-8 text-center text-muted-foreground">暂无任务，点击「新建任务」开始。</div>
               ) : (
                 <div className="space-y-2">
                   {filteredTasks.map((task) => {

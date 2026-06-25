@@ -21,9 +21,9 @@ import { useActivityStore } from '@/store/seating-activity-store';
 import { Toolbar } from '@/components/seating/Toolbar';
 import { PersonPool } from '@/components/seating/PersonPool';
 import { TableCard } from '@/components/seating/TableCard';
-import { ExportModal } from '@/components/seating/ExportModal';
 import { CreateTablesModal } from '@/components/seating/CreateTablesModal';
-import { TableCardGenerator } from '@/components/seating/TableCardGenerator';
+// 懒加载大型组件（html2canvas + jspdf）
+import { ExportModalLazy, TableCardGeneratorLazy } from '@/components/seating/lazy';
 import type { Person } from '@/types/seating';
 
 export default function SeatingPage() {
@@ -496,7 +496,7 @@ export default function SeatingPage() {
 
       {/* 弹窗 */}
       {/* 名单从 roster 统一管理，导入功能已移至名单管理 */}
-      <ExportModal
+      <ExportModalLazy
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         activity={activity}
@@ -507,7 +507,7 @@ export default function SeatingPage() {
         onClose={() => setShowCreateTablesModal(false)}
         onCreate={createTables}
       />
-      <TableCardGenerator
+      <TableCardGeneratorLazy
         isOpen={showCardGenerator}
         onClose={() => setShowCardGenerator(false)}
         activityName={activity.name}

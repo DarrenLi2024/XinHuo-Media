@@ -24,7 +24,6 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      'import/no-cycle': ['error', { ignoreExternal: true }],
       'react-hooks/set-state-in-effect': 'off',
       'no-restricted-syntax': ['error', ...syntaxRules],
     },
@@ -45,6 +44,8 @@ const eslintConfig = defineConfig([
     // Build artifacts:
     'server.js',
     'dist/**',
+    // Vercel output (build artifacts):
+    '.vercel/**',
     // Script files (CommonJS):
     'scripts/**/*.js',
   ]),

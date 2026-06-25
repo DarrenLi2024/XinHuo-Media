@@ -139,7 +139,7 @@ export default function AttendeesPage() {
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">暂无数据，请点击"刷新名单"从名单管理同步</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">暂无数据，请点击「刷新名单」从名单管理同步</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

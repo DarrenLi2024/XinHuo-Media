@@ -115,7 +115,7 @@ export default function FormsPage() {
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">加载中...</div>
       ) : forms.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">暂无表单，点击"新建表单"创建。</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">暂无表单，点击「新建表单」创建。</CardContent></Card>
       ) : (
         <Table>
           <TableHeader>

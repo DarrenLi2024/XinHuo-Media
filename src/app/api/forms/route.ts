@@ -53,7 +53,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data }, { status: 201 });
     }
 
-    const form = createDemoForm(body as any);
+    const form = createDemoForm({
+      event_id: body.event_id || '',
+      type: 'registration',
+      title: body.title,
+      description: body.description,
+      fields: (body.fields || []).map((f, i) => ({
+        id: crypto.randomUUID(),
+        label: f.label,
+        type: f.type as 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'number' | 'checkbox',
+        required: f.required ?? false,
+        order: i,
+      })),
+    });
     return NextResponse.json({ success: true, data: form }, { status: 201 });
   } catch (error) {
     return apiError(error);

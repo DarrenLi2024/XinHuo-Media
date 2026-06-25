@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   allowedDevOrigins: ['*.dev.coze.site'],
+  // 性能优化
+  compress: true,
+  poweredByHeader: false,
   async headers() {
     return [
       {
