@@ -12,12 +12,9 @@ const fetcher = async (url: string) => {
 };
 
 // 默认 SWR 配置
-export const defaultSWRConfig: SWRConfiguration = {
-  revalidateOnFocus: false,      // 窗口聚焦时不重新验证
-  revalidateOnReconnect: true,   // 网络重连时重新验证
-  shouldRetryOnError: false,     // 错误时不自动重试
-  dedupingInterval: 5000,        // 5秒内相同请求去重
-  errorRetryCount: 0,            // 不重试
+const defaultSWRConfig: SWRConfiguration = {
+  revalidateOnFocus: false,
+  shouldRetryOnError: false,
 };
 
 // 通用数据请求 hook
