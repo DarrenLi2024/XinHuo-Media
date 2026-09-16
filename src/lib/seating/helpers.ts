@@ -6,25 +6,18 @@ export const generateId = (): string => uuidv4();
 
 // ============ 公司简称智能解析算法 ============
 
-// 公司名称后缀（从长到短排序）
+// 公司名称后缀（每轮从末尾匹配最长项）
 const COMPANY_SUFFIXES = [
-  '股份有限公司',
-  '有限责任公司',
-  '集团有限公司',
-  '控股有限公司',
-  '投资有限公司',
-  '发展有限公司',
-  '科技有限公司',
-  '实业有限公司',
-  '有限公司',
-  '集团',
-  '公司',
+  '股份有限公司', '有限责任公司', '有限公司', '有限合伙', '合伙企业',
+  '供应链管理', '文化传媒', '服务发展', '村镇银行', '营业部',
+  '科技', '技术', '集团', '控股', '实业', '贸易', '商贸', '酒业',
+  '企业', '系统', '支行', '传媒',
 ];
 
 // 地域前缀
 const REGION_PREFIXES = [
-  '中国', '北京市', '北京', '上海市', '上海', '深圳市', '深圳',
-  '广州市', '广州', '杭州市', '杭州', '南京市', '南京',
+  '深圳市', '北京市', '上海市', '广州市', '杭州市', '南京市', '天津市',
+  '中国', '香港', '北京', '上海', '深圳', '广州', '杭州', '南京', '天津',
   '天津市', '天津', '重庆市', '重庆', '成都市', '成都',
   '武汉市', '武汉', '西安市', '西安', '苏州市', '苏州',
   '东莞市', '东莞', '佛山市', '佛山', '青岛市', '青岛',
@@ -32,174 +25,71 @@ const REGION_PREFIXES = [
   '广东省', '广东', '福建省', '福建', '四川省', '四川',
 ];
 
-// 行业描述词（特色行业词，长度>6时删除）
-const INDUSTRY_WORDS = [
-  '科技', '技术', '网络', '信息', '电子', '软件', '数字', '智能', '数据',
-  '健康', '酒业', '供应链', '医药', '医疗', '教育', '金融', '保险',
-  '物流', '能源', '环保', '新材料', '新能源', '汽车', '房产', '建筑',
-  '通信', '互联网', '物联网', '人工智能', '大数据', '云计算',
-  '咨询',  // 咨询也是行业词，长度>6时才删除
-];
+const TRUNCATED_INDUSTRY_WORDS = ['电子', '科技', '智慧', '系统', '网络', '信息', '传媒', '企业', '商务', '技术'];
 
-// 通用后缀词（始终删除，不保留）
-const COMMON_SUFFIXES = [
-  '管理', '服务', '文化', '传媒', '控股', '投资',
-  '发展', '实业', '产业', '贸易', '销售', '商贸', '商业',
-  '零售', '批发', '进出口', '制造', '工程',
-];
-
-// 品牌词典（按优先级排序，短词优先）
-const BRAND_DICT = [
-  '腾讯', '阿里', '阿里巴巴', '华为', '京东', '字节', '字节跳动',
-  '美团', '小米', '百度', '网易', '拼多多', '米哈游',
-  '滴滴', '快手', '哔哩哔哩', 'B站', '新浪', '搜狐',
-  '格力', '美的', '海尔', '联想', '中兴', 'OPPO', 'VIVO',
-  '比亚迪', '蔚来', '小鹏', '理想', '宁德时代',
-  '中国移动', '中国联通', '中国电信',
-];
-
-// 1. 文本标准化
 const normalize = (name: string): string => {
   return name
-    .replace(/\s+/g, '')                    // 删除所有空格
-    .replace(/[（）()（）]/g, '')           // 删除所有括号
+    .replace(/\s+/g, '')
+    .replace(/[（(][^）)]*[）)]/g, '')
     .trim();
 };
 
-// 2. 删除公司类型后缀
-const removeSuffix = (name: string): string => {
-  for (const suffix of COMPANY_SUFFIXES) {
-    if (name.endsWith(suffix)) {
-      return name.slice(0, -suffix.length);
+const splitCompanyName = (fullName: string): { prefix: string; core: string } => {
+  const normalized = normalize(fullName);
+  const prefix = REGION_PREFIXES.find((region) => normalized.startsWith(region)) || '';
+  return { prefix, core: normalized.slice(prefix.length) };
+};
+
+const removeCompanySuffixes = (value: string): string => {
+  let core = value;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const suffix = [...COMPANY_SUFFIXES]
+      .sort((left, right) => right.length - left.length)
+      .find((candidate) => core.endsWith(candidate));
+    if (suffix) {
+      core = core.slice(0, -suffix.length);
+      changed = true;
     }
   }
-  return name;
+  return core;
 };
 
-// 3. 删除地域前缀
-const removeRegion = (name: string): string => {
-  for (const region of REGION_PREFIXES) {
-    if (name.startsWith(region)) {
-      return name.slice(region.length);
-    }
-  }
-  return name;
+const removeLegalSuffix = (value: string): string => {
+  const legalSuffix = ['股份有限公司', '有限责任公司', '有限公司', '有限合伙']
+    .find((suffix) => value.endsWith(suffix));
+  return legalSuffix ? value.slice(0, -legalSuffix.length) : value;
 };
 
-// 4. 删除通用后缀词（优先删除）
-const removeCommonSuffix = (name: string): string => {
-  for (const suffix of COMMON_SUFFIXES) {
-    if (name.endsWith(suffix)) {
-      return name.slice(0, -suffix.length);
-    }
-  }
-  return name;
-};
-
-// 5. 删除特色行业词
-const removeIndustry = (name: string): string => {
-  for (const industry of INDUSTRY_WORDS) {
-    if (name.endsWith(industry)) {
-      return name.slice(0, -industry.length);
-    }
-  }
-  return name;
-};
-
-// 5. 品牌词典匹配（优先返回最短匹配）
-const matchBrand = (name: string): string | null => {
-  let shortestMatch: string | null = null;
-  
-  for (const brand of BRAND_DICT) {
-    if (name.includes(brand)) {
-      // 找最短的品牌匹配
-      if (!shortestMatch || brand.length < shortestMatch.length) {
-        shortestMatch = brand;
-      }
-    }
-  }
-  
-  return shortestMatch;
-};
-
-// 8. 删除行业词（先尝试删除一个，如果结果>=3字则接受，否则不删）
-const removeIndustryIteratively = (name: string): string => {
-  let result = name;
-  
-  // 先尝试删除一个行业词
-  const afterOne = removeIndustry(result);
-  if (afterOne !== result && afterOne.length >= 3) {
-    result = afterOne;
-  }
-  
-  // 如果仍然>6，继续删除
-  while (result.length > 6) {
-    const before = result.length;
-    result = removeIndustry(result);
-    if (result.length === before) break;
-  }
-  
-  return result;
-};
-
-// 9. 循环删除通用后缀词（maxLen=0表示删除所有）
-const removeCommonSuffixIteratively = (name: string, maxLen: number = 6): string => {
-  let result = name;
-  
-  while (maxLen === 0 ? true : result.length > maxLen) {
-    const before = result.length;
-    result = removeCommonSuffix(result);
-    if (result.length === before) break;
-  }
-  
-  return result;
-};
-
-// 9. 最终长度处理
-const finalizeLength = (name: string): string => {
-  if (name.length <= 6) return name;
-  return name.slice(0, 4);
-};
-
-// 主函数：获取公司简称
+// 根据附件规则生成规范候选简称；不负责判断是否覆盖已有简称。
 export const extractCompanyShortName = (fullName: string): string => {
   if (!fullName) return '';
-  
-  // 1. 文本标准化
-  let name = normalize(fullName);
-  
-  // 2. 删除公司类型后缀
-  name = removeSuffix(name);
-  
-  // 3. 品牌词典匹配（在去地域前优先匹配，避免误删"中国移动"等品牌）
-  const brandMatch = matchBrand(name);
-  if (brandMatch) {
-    return brandMatch;
+  const { prefix, core: originalCore } = splitCompanyName(fullName);
+  let core = removeLegalSuffix(originalCore);
+  if (core.endsWith('电子商务')) core = core.slice(0, -'电子商务'.length);
+  core = removeCompanySuffixes(core);
+  if (core.endsWith('电子')) {
+    const base = core.slice(0, -'电子'.length);
+    if (base.length > 2) core = base;
   }
-  
-  // 4. 删除地域前缀
-  name = removeRegion(name);
-  
-  // 5. 先删除通用后缀词（管理、销售、服务等，无论长度如何）
-  name = removeCommonSuffixIteratively(name, 0);
-  
-  // 6. 如果删除通用后缀后长度<=4，直接返回（避免删除过多）
-  if (name.length <= 4) {
-    return name;
-  }
-  
-  // 7. 删除行业词（删除直到结果<=4字或无可删除）
-  name = removeIndustryIteratively(name);
-  
-  // 8. 最终长度处理（超过6字截取前4字）
-  name = finalizeLength(name);
-  
-  // 9. 确保至少有2个字
-  if (name.length < 2) {
-    return fullName.slice(0, Math.min(4, fullName.length));
-  }
-  
-  return name;
+  return prefix + core;
+};
+
+// 截断判定必须基于去法律后缀、但尚未去行业词的原始商号核心。
+export const isCompanyShortNameTruncation = (oldShort: string, base: string): boolean => {
+  if (!oldShort || !base || oldShort === base || !base.startsWith(oldShort)) return false;
+  const remainder = base.slice(oldShort.length);
+  const combined = oldShort.slice(-1) + remainder[0];
+  return TRUNCATED_INDUSTRY_WORDS.includes(combined);
+};
+
+export const resolveCompanyShortName = (company: string, existingShort = ''): string => {
+  const candidate = extractCompanyShortName(company);
+  if (!existingShort) return candidate;
+  const { prefix, core } = splitCompanyName(company);
+  const base = prefix + removeLegalSuffix(core);
+  return isCompanyShortNameTruncation(existingShort, base) ? candidate : existingShort;
 };
 
 // 从文本中提取标签
@@ -821,7 +711,7 @@ const smartParseArrayData = (data: string[][]): Person[] => {
         id: generateId(),
         name: person.name,
         company: person.company || '',
-        companyShort: person.companyShort || extractCompanyShortName(person.company || ''),
+        companyShort: resolveCompanyShortName(person.company || '', person.companyShort || ''),
         title: person.title || '',
         phone: person.phone || '',
         tags: person.tags || [],
@@ -861,7 +751,7 @@ const smartParseTextData = (text: string): Person[] => {
         id: generateId(),
         name: person.name,
         company: person.company || '',
-        companyShort: person.companyShort || extractCompanyShortName(person.company || ''),
+        companyShort: resolveCompanyShortName(person.company || '', person.companyShort || ''),
         title: person.title || '',
         phone: person.phone || '',
         tags: person.tags || [],
@@ -966,11 +856,12 @@ export const parseJSON = async (file: File): Promise<ImportResult> => {
         const str = (value: unknown): string => (typeof value === 'string' ? value : '');
         const toPerson = (raw: Record<string, unknown>, fallbackTable?: string): Person => {
           const company = str(raw.company) || str(raw['公司']);
+          const existingCompanyShort = str(raw.companyShort) || str(raw['公司简称']);
           return {
             id: str(raw.id) || generateId(),
             name: str(raw.name) || str(raw['姓名']),
             company,
-            companyShort: extractCompanyShortName(company),
+            companyShort: resolveCompanyShortName(company, existingCompanyShort),
             title: str(raw.title) || str(raw['职位']),
             phone: str(raw.phone) || str(raw['电话']),
             tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
