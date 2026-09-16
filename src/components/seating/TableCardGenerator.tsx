@@ -18,8 +18,24 @@ interface CardConfig {
   footer: string;
 }
 
-// 四套皮肤配置
-const SKINS = {
+interface SkinConfig {
+  name: string;
+  gradient: string;
+  primaryColor: string;
+  primaryGradient: string;
+  textColor: string;
+  accentColor: string;
+  glowColor: string;
+  seatBg: string;
+  seatBorder: string;
+  seatNumberBg: string;
+  seatNumberColor: string;
+  backgroundImage?: string;
+  backgroundOverlay?: string;
+}
+
+// 五套皮肤配置
+const SKINS: Record<string, SkinConfig> = {
   'tech-blue': {
     name: '科技蓝',
     gradient: 'linear-gradient(180deg, #dbeafe 0%, #ffffff 30%, #eff6ff 70%, #dbeafe 100%)',
@@ -71,6 +87,21 @@ const SKINS = {
     seatBorder: 'rgba(239, 68, 68, 0.3)',
     seatNumberBg: 'linear-gradient(135deg, #fecaca 0%, #fca5a5 100%)',
     seatNumberColor: '#dc2626',
+  },
+  'yueying-shanhe': {
+    name: '月映山河',
+    backgroundImage: '/seating/skins/yueying-shanhe-background.png',
+    backgroundOverlay: 'rgba(7, 31, 69, 0.14)',
+    gradient: 'linear-gradient(180deg, #071f45 0%, #0b2f5b 48%, #061a3a 100%)',
+    primaryColor: '#f2cf83',
+    primaryGradient: 'linear-gradient(135deg, #b88939 0%, #f2cf83 52%, #ffe8a3 100%)',
+    textColor: '#fff1c8',
+    accentColor: '#ffe8a3',
+    glowColor: 'rgba(242, 207, 131, 0.28)',
+    seatBg: 'rgba(7, 31, 69, 0.72)',
+    seatBorder: 'rgba(242, 207, 131, 0.52)',
+    seatNumberBg: 'linear-gradient(135deg, #8f672c 0%, #d9b45f 100%)',
+    seatNumberColor: '#fff1c8',
   },
 };
 
@@ -178,7 +209,8 @@ const drawCanvasGradientBackground = (
   ctx: CanvasRenderingContext2D, 
   skin: typeof SKINS['tech-blue'],
   width: number,
-  height: number
+  height: number,
+  backgroundImage?: HTMLImageElement
 ) => {
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
   
@@ -198,6 +230,10 @@ const drawCanvasGradientBackground = (
     gradient.addColorStop(0.3, '#ffffff');
     gradient.addColorStop(0.7, '#fffbeb');
     gradient.addColorStop(1, '#fef3c7');
+  } else if (skin.primaryColor === '#f2cf83') { // 月映山河
+    gradient.addColorStop(0, '#071f45');
+    gradient.addColorStop(0.45, '#0b2f5b');
+    gradient.addColorStop(1, '#061a3a');
   } else { // rainbow 盛唐红
     gradient.addColorStop(0, '#fef2f2');
     gradient.addColorStop(0.2, '#ffffff');
@@ -209,6 +245,33 @@ const drawCanvasGradientBackground = (
   
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
+
+  if (backgroundImage) {
+    const imageRatio = backgroundImage.width / backgroundImage.height;
+    const canvasRatio = width / height;
+    const sourceWidth = imageRatio > canvasRatio
+      ? backgroundImage.height * canvasRatio
+      : backgroundImage.width;
+    const sourceHeight = imageRatio > canvasRatio
+      ? backgroundImage.height
+      : backgroundImage.width / canvasRatio;
+    const sourceX = (backgroundImage.width - sourceWidth) / 2;
+    const sourceY = (backgroundImage.height - sourceHeight) / 2;
+
+    ctx.drawImage(
+      backgroundImage,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      width,
+      height
+    );
+    ctx.fillStyle = 'rgba(7, 31, 69, 0.14)';
+    ctx.fillRect(0, 0, width, height);
+  }
 };
 
 // Canvas绘制圆角矩形
@@ -366,7 +429,8 @@ const drawTableCardToCanvas = (
   config: CardConfig,
   skin: typeof SKINS['tech-blue'],
   logoUrl: string,
-  activityName: string
+  activityName: string,
+  backgroundImage?: HTMLImageElement
 ): void => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -382,7 +446,7 @@ const drawTableCardToCanvas = (
   ctx.scale(scale, scale);
   
   // 1. 绘制渐变背景
-  drawCanvasGradientBackground(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT);
+  drawCanvasGradientBackground(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT, backgroundImage);
   
   // 2. 绘制边框装饰
   drawCanvasBorder(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT);
@@ -650,7 +714,17 @@ const drawTableCardToCanvas = (
   }
 };
 
-// 异步绘制桌位牌（支持Logo加载）
+const loadCanvasImage = (src: string): Promise<HTMLImageElement | null> => {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+};
+
+// 异步绘制桌位牌（支持Logo和皮肤背景加载）
 const drawTableCardToCanvasAsync = async (
   canvas: HTMLCanvasElement,
   table: Table,
@@ -659,6 +733,10 @@ const drawTableCardToCanvasAsync = async (
   logoUrl: string,
   activityName: string
 ): Promise<void> => {
+  const backgroundImage = skin.backgroundImage
+    ? await loadCanvasImage(skin.backgroundImage)
+    : null;
+
   // 如果有Logo，先加载
   if (logoUrl) {
     try {
@@ -667,21 +745,21 @@ const drawTableCardToCanvasAsync = async (
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           // Logo加载完成后绘制
-          drawTableCardToCanvasWithLogo(canvas, table, config, skin, img, activityName);
+          drawTableCardToCanvasWithLogo(canvas, table, config, skin, img, activityName, backgroundImage || undefined);
           resolve();
         };
         img.onerror = () => {
           // Logo加载失败，不带Logo绘制
-          drawTableCardToCanvas(canvas, table, config, skin, '', activityName);
+          drawTableCardToCanvas(canvas, table, config, skin, '', activityName, backgroundImage || undefined);
           resolve();
         };
         img.src = logoUrl;
       });
     } catch (e) {
-      drawTableCardToCanvas(canvas, table, config, skin, '', activityName);
+      drawTableCardToCanvas(canvas, table, config, skin, '', activityName, backgroundImage || undefined);
     }
   } else {
-    drawTableCardToCanvas(canvas, table, config, skin, '', activityName);
+    drawTableCardToCanvas(canvas, table, config, skin, '', activityName, backgroundImage || undefined);
   }
 };
 
@@ -692,7 +770,8 @@ const drawTableCardToCanvasWithLogo = (
   config: CardConfig,
   skin: typeof SKINS['tech-blue'],
   logoImg: HTMLImageElement,
-  activityName: string
+  activityName: string,
+  backgroundImage?: HTMLImageElement
 ): void => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -708,7 +787,7 @@ const drawTableCardToCanvasWithLogo = (
   ctx.scale(scale, scale);
   
   // 1. 绘制渐变背景
-  drawCanvasGradientBackground(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT);
+  drawCanvasGradientBackground(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT, backgroundImage);
   
   // 2. 绘制边框装饰
   drawCanvasBorder(ctx, skin, CARD_PIXEL_WIDTH, CARD_PIXEL_HEIGHT);
@@ -1359,10 +1438,15 @@ export const TableCardGenerator: React.FC<TableCardGeneratorProps> = ({
                   width: '300px', 
                   height: '660px',
                   background: skin.gradient,
+                  backgroundImage: skin.backgroundImage
+                    ? `linear-gradient(${skin.backgroundOverlay}, ${skin.backgroundOverlay}), url("${skin.backgroundImage}")`
+                    : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
                 }}
               >
                 {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-15">
+                <div className={`absolute inset-0 ${selectedSkin === 'yueying-shanhe' ? 'opacity-5' : 'opacity-15'}`}>
                   <svg width="100%" height="100%" className="absolute inset-0">
                     <defs>
                       <linearGradient id={`techLine-${selectedSkin}`} x1="0%" y1="0%" x2="100%" y2="0%">
