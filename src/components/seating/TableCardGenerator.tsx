@@ -100,7 +100,7 @@ const SKINS: Record<string, SkinConfig> = {
     glowColor: 'rgba(242, 207, 131, 0.28)',
     seatBg: 'rgba(7, 31, 69, 0.72)',
     seatBorder: 'rgba(242, 207, 131, 0.52)',
-    seatNumberBg: 'linear-gradient(135deg, #8f672c 0%, #d9b45f 100%)',
+    seatNumberBg: '#b88939',
     seatNumberColor: '#fff1c8',
   },
 };
@@ -133,6 +133,11 @@ const formatTagForDisplay = (tag: string): { text: string; isVertical: boolean }
   // 判断是否为英文标签
   const isVertical = isEnglishTag(simplified);
   return { text: simplified, isVertical };
+};
+
+// 桌牌显示始终根据当前公司全称重新计算，避免旧 companyShort 污染导出结果。
+const getDisplayCompanyShort = (person: Person): string => {
+  return extractCompanyShortName(person.company || '') || person.companyShort || '';
 };
 
 // 旧函数名保留兼容，内部使用新逻辑
@@ -541,7 +546,7 @@ const drawTableCardToCanvas = (
     ctx.fillText(tableLeader.name, CARD_PIXEL_WIDTH / 2 + 5, currentY);
     
     if (tableLeader.company) {
-      const companyShort = tableLeader.companyShort || extractCompanyShortName(tableLeader.company);
+      const companyShort = getDisplayCompanyShort(tableLeader);
       ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText(`· ${companyShort}`, CARD_PIXEL_WIDTH / 2 + 50, currentY);
@@ -603,6 +608,8 @@ const drawTableCardToCanvas = (
           seatNumBg = '#ede9fe'; // violet-100
         } else if (skin.primaryColor === '#d97706') {
           seatNumBg = '#fef3c7'; // amber-100
+        } else if (skin.primaryColor === '#f2cf83') {
+          seatNumBg = '#b88939'; // 月映山河金色座位号底
         } else {
           seatNumBg = '#fce7f3'; // pink-100
         }
@@ -643,7 +650,7 @@ const drawTableCardToCanvas = (
       
       // 公司简称 - 居中
       if (person.company) {
-        const companyShort = person.companyShort || extractCompanyShortName(person.company);
+        const companyShort = getDisplayCompanyShort(person);
         ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
         ctx.fillStyle = '#94a3b8';
         ctx.fillText(companyShort.substring(0, 8), nameCenterX, y + 34);
@@ -886,7 +893,7 @@ const drawTableCardToCanvasWithLogo = (
     ctx.fillText(tableLeader.name, CARD_PIXEL_WIDTH / 2 + 5, currentY);
     
     if (tableLeader.company) {
-      const companyShort = tableLeader.companyShort || extractCompanyShortName(tableLeader.company);
+      const companyShort = getDisplayCompanyShort(tableLeader);
       ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText(`· ${companyShort}`, CARD_PIXEL_WIDTH / 2 + 50, currentY);
@@ -948,6 +955,8 @@ const drawTableCardToCanvasWithLogo = (
           seatNumBg = '#ede9fe'; // violet-100
         } else if (skin.primaryColor === '#d97706') {
           seatNumBg = '#fef3c7'; // amber-100
+        } else if (skin.primaryColor === '#f2cf83') {
+          seatNumBg = '#b88939'; // 月映山河金色座位号底
         } else {
           seatNumBg = '#fce7f3'; // pink-100
         }
@@ -985,7 +994,7 @@ const drawTableCardToCanvasWithLogo = (
       ctx.fillText(person.name.substring(0, 5), nameCenterX, y + 18);
       
       if (person.company) {
-        const companyShort = person.companyShort || extractCompanyShortName(person.company);
+        const companyShort = getDisplayCompanyShort(person);
         ctx.font = '10px "PingFang SC", "Microsoft YaHei", sans-serif';
         ctx.fillStyle = '#94a3b8';
         ctx.fillText(companyShort.substring(0, 8), nameCenterX, y + 34);
@@ -1542,7 +1551,7 @@ export const TableCardGenerator: React.FC<TableCardGeneratorProps> = ({
                       <span className="font-bold text-sm" style={{ color: skin.textColor }}>{tableLeader.name}</span>
                       {tableLeader.company && (
                         <span className="text-slate-400 text-[10px]">
-                          · {tableLeader.companyShort || extractCompanyShortName(tableLeader.company)}
+                          · {getDisplayCompanyShort(tableLeader)}
                         </span>
                       )}
                     </div>
@@ -1556,7 +1565,7 @@ export const TableCardGenerator: React.FC<TableCardGeneratorProps> = ({
                           // 获取标签（简化处理，支持英文竖向）
                           const tagInfo = person.tags.length > 0 ? formatTagForDisplay(person.tags[0]) : null;
                           const seatNumber = seatStartNumber + index; // 根据奇偶座位决定起始编号
-                          const companyShort = person.companyShort || extractCompanyShortName(person.company || '');
+                          const companyShort = getDisplayCompanyShort(person);
                           // 判断是否为桌长（座位号为1）
                           const isLeader = seatNumber === 1;
                           
