@@ -6,15 +6,7 @@ export const generateId = (): string => uuidv4();
 
 // ============ 公司简称智能解析算法 ============
 
-// 公司名称后缀（每轮从末尾匹配最长项）
-const COMPANY_SUFFIXES = [
-  '股份有限公司', '有限责任公司', '有限公司', '有限合伙', '合伙企业',
-  '供应链管理', '文化传媒', '服务发展', '村镇银行', '营业部',
-  '科技', '技术', '集团', '控股', '实业', '贸易', '商贸', '酒业',
-  '企业', '系统', '支行', '传媒',
-];
-
-// 地域前缀
+// 仅移除公司名称边界上的行政地域，不触碰名称中间的城市字样。
 const REGION_PREFIXES = [
   '深圳市', '北京市', '上海市', '广州市', '杭州市', '南京市', '天津市',
   '中国', '香港', '北京', '上海', '深圳', '广州', '杭州', '南京', '天津',
@@ -24,6 +16,20 @@ const REGION_PREFIXES = [
   '山东省', '山东', '江苏省', '江苏', '浙江省', '浙江',
   '广东省', '广东', '福建省', '福建', '四川省', '四川',
 ];
+
+const REGION_SUFFIXES = [
+  ...REGION_PREFIXES,
+  '福田', '坂田', '南山', '龙岗', '宝安', '罗湖', '龙华', '光明', '坪山',
+];
+
+// 先处理法律/机构后缀，再识别一个业务行业尾词。
+const LEGAL_SUFFIXES = ['股份有限公司', '有限责任公司', '有限公司', '有限合伙', '合伙企业'];
+const COMPANY_SUFFIXES = [
+  '供应链管理', '文化传媒', '服务发展', '村镇银行', '营业部', '中心支行',
+  '支行', '分行', '集团', '控股', '实业', '贸易', '商贸', '科技', '技术',
+  '酒业', '企业', '系统', '半导体', '传媒',
+];
+const BRANCH_SUFFIXES = ['营业部', '中心支行', '支行', '分行'];
 
 const TRUNCATED_INDUSTRY_WORDS = ['电子', '科技', '智慧', '系统', '网络', '信息', '传媒', '企业', '商务', '技术'];
 
@@ -40,40 +46,91 @@ const splitCompanyName = (fullName: string): { prefix: string; core: string } =>
   return { prefix, core: normalized.slice(prefix.length) };
 };
 
-const removeCompanySuffixes = (value: string): string => {
-  let core = value;
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const suffix = [...COMPANY_SUFFIXES]
-      .sort((left, right) => right.length - left.length)
-      .find((candidate) => core.endsWith(candidate));
-    if (suffix) {
-      core = core.slice(0, -suffix.length);
-      changed = true;
-    }
-  }
-  return core;
-};
-
 const removeLegalSuffix = (value: string): string => {
-  const legalSuffix = ['股份有限公司', '有限责任公司', '有限公司', '有限合伙']
+  const legalSuffix = [...LEGAL_SUFFIXES]
+    .sort((left, right) => right.length - left.length)
     .find((suffix) => value.endsWith(suffix));
   return legalSuffix ? value.slice(0, -legalSuffix.length) : value;
 };
 
-// 根据附件规则生成规范候选简称；不负责判断是否覆盖已有简称。
+const removeBoundaryRegion = (value: string): string => {
+  let result = value;
+  const prefix = REGION_PREFIXES.find((region) => result.startsWith(region));
+  if (prefix) result = result.slice(prefix.length);
+
+  const suffix = [...REGION_SUFFIXES]
+    .sort((left, right) => right.length - left.length)
+    .find((region) => result.endsWith(region) && result.length > region.length);
+  if (suffix) result = result.slice(0, -suffix.length);
+  return result;
+};
+
+const findCompanySuffix = (value: string): string | undefined => {
+  const suffix = [...COMPANY_SUFFIXES]
+    .sort((left, right) => right.length - left.length)
+    .find((candidate) => value.endsWith(candidate));
+  return suffix;
+};
+
+const removeCompanySuffix = (value: string, suffix: string | undefined): string => {
+  return suffix ? value.slice(0, -suffix.length) : value;
+};
+
+const removeBranchSuffixes = (value: string): string => {
+  let result = value;
+  let suffix: string | undefined;
+  do {
+    suffix = [...BRANCH_SUFFIXES]
+      .sort((left, right) => right.length - left.length)
+      .find((candidate) => result.endsWith(candidate));
+    if (suffix) result = result.slice(0, -suffix.length);
+  } while (suffix);
+  return result;
+};
+
+const removeBranchRegion = (value: string): string => {
+  const suffix = [...REGION_SUFFIXES]
+    .sort((left, right) => right.length - left.length)
+    .find((region) => value.endsWith(region) && value.length > region.length);
+  return suffix ? value.slice(0, -suffix.length) : value;
+};
+
+const shouldKeepIndustrySuffix = (core: string, suffix: string | undefined): boolean => {
+  if (!suffix) return false;
+  const totalLength = core.length + suffix.length;
+
+  // 四字以内通常就是自然口头简称，例如“芯火传媒”“平安科技”。
+  if (totalLength <= 4) return true;
+  // 超过五字后，桌牌上不再像人们日常称呼，统一去掉行业尾词。
+  if (totalLength > 5) return false;
+  // 恰好五字时，两字品牌+行业词仍常被完整称呼；三字品牌则倾向只留品牌。
+  return core.length <= 2;
+};
+
+// 生成用于桌牌、名单和导出的规范简称；原始 company 字段不被修改。
 export const extractCompanyShortName = (fullName: string): string => {
   if (!fullName) return '';
-  const { prefix, core: originalCore } = splitCompanyName(fullName);
-  let core = removeLegalSuffix(originalCore);
+  let core = normalize(fullName);
+  core = removeLegalSuffix(core);
+  core = removeBoundaryRegion(core);
+
+  // “电子商务”是整体行业词，不能拆成“电子 + 商务”处理。
   if (core.endsWith('电子商务')) core = core.slice(0, -'电子商务'.length);
-  core = removeCompanySuffixes(core);
+
+  // 银行支行名称常见“福田支行营业部”“坂田支行”，先去机构后缀，再去分支地区。
+  core = removeBranchSuffixes(core);
+  core = removeBranchRegion(core);
+  const industrySuffix = findCompanySuffix(core);
+  const brandCore = industrySuffix ? core.slice(0, -industrySuffix.length) : core;
+  if (!shouldKeepIndustrySuffix(brandCore, industrySuffix)) {
+    core = removeCompanySuffix(core, industrySuffix);
+  }
+
   if (core.endsWith('电子')) {
     const base = core.slice(0, -'电子'.length);
     if (base.length > 2) core = base;
   }
-  return prefix + core;
+  return core || normalize(fullName);
 };
 
 // 截断判定必须基于去法律后缀、但尚未去行业词的原始商号核心。
@@ -87,9 +144,18 @@ export const isCompanyShortNameTruncation = (oldShort: string, base: string): bo
 export const resolveCompanyShortName = (company: string, existingShort = ''): string => {
   const candidate = extractCompanyShortName(company);
   if (!existingShort) return candidate;
-  const { prefix, core } = splitCompanyName(company);
-  const base = prefix + removeLegalSuffix(core);
-  return isCompanyShortNameTruncation(existingShort, base) ? candidate : existingShort;
+  const normalizedExisting = normalize(existingShort);
+  const normalizedCompany = normalize(company);
+  const regionVariant = REGION_PREFIXES.some((region) => normalizedExisting === `${region}${candidate}`);
+  const fullNameVariant = normalizedExisting === normalizedCompany
+    || normalizedExisting === removeLegalSuffix(normalizedCompany);
+
+  // 地域变体、完整公司名和已确认的行业词截断都应被规范候选替换。
+  if (regionVariant || fullNameVariant) return candidate;
+
+  const { core } = splitCompanyName(company);
+  const base = removeLegalSuffix(core);
+  return isCompanyShortNameTruncation(normalizedExisting, base) ? candidate : normalizedExisting;
 };
 
 // 从文本中提取标签
